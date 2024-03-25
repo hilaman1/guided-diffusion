@@ -12,20 +12,33 @@ from . import dist_util, logger
 from .fp16_util import MixedPrecisionTrainer
 from .nn import update_ema
 from .resample import LossAwareSampler, UniformSampler
+# from visdom import Visdom
+# viz = Visdom(port=8850)
+# loss_window = viz.line( Y=th.zeros((1)).cpu(), X=th.zeros((1)).cpu(), opts=dict(xlabel='epoch', ylabel='Loss', title='loss'))
+# grad_window = viz.line(Y=th.zeros((1)).cpu(), X=th.zeros((1)).cpu(),
+#                            opts=dict(xlabel='step', ylabel='amplitude', title='gradient'))
+
 
 # For ImageNet experiments, this was a good default value.
 # We found that the lg_loss_scale quickly climbed to
 # 20-21 within the first ~1K steps of training.
 INITIAL_LOG_LOSS_SCALE = 20.0
 
+def visualize(img):
+    _min = img.min()
+    _max = img.max()
+    normalized_img = (img - _min)/ (_max - _min)
+    return normalized_img
 
 class TrainLoop:
     def __init__(
         self,
         *,
         model,
+        classifier,
         diffusion,
         data,
+        dataloader,
         batch_size,
         microbatch,
         lr,
@@ -40,6 +53,8 @@ class TrainLoop:
         lr_anneal_steps=0,
     ):
         self.model = model
+        self.dataloader=dataloader
+        self.classifier = classifier
         self.diffusion = diffusion
         self.data = data
         self.batch_size = batch_size
@@ -111,10 +126,11 @@ class TrainLoop:
         resume_checkpoint = find_resume_checkpoint() or self.resume_checkpoint
 
         if resume_checkpoint:
+            print('resume model')
             self.resume_step = parse_resume_step_from_filename(resume_checkpoint)
             if dist.get_rank() == 0:
                 logger.log(f"loading model from checkpoint: {resume_checkpoint}...")
-                self.model.load_state_dict(
+                self.model.load_part_state_dict(
                     dist_util.load_state_dict(
                         resume_checkpoint, map_location=dist_util.dev()
                     )
@@ -151,12 +167,27 @@ class TrainLoop:
             self.opt.load_state_dict(state_dict)
 
     def run_loop(self):
+        i = 0
+        data_iter = iter(self.dataloader)
         while (
             not self.lr_anneal_steps
             or self.step + self.resume_step < self.lr_anneal_steps
         ):
-            batch, cond = next(self.data)
+
+
+            try:
+                    batch, cond, name = next(data_iter)
+            except StopIteration:
+                    # StopIteration is thrown if dataset ends
+                    # reinitialize data loader
+                    data_iter = iter(self.dataloader)
+                    batch, cond, name = next(data_iter)
+
             self.run_step(batch, cond)
+
+           
+            i += 1
+          
             if self.step % self.log_interval == 0:
                 logger.dumpkvs()
             if self.step % self.save_interval == 0:
@@ -170,14 +201,19 @@ class TrainLoop:
             self.save()
 
     def run_step(self, batch, cond):
-        self.forward_backward(batch, cond)
+        batch=th.cat((batch, cond), dim=1)
+
+        cond={}
+        sample = self.forward_backward(batch, cond)
         took_step = self.mp_trainer.optimize(self.opt)
         if took_step:
             self._update_ema()
         self._anneal_lr()
         self.log_step()
+        return sample
 
     def forward_backward(self, batch, cond):
+
         self.mp_trainer.zero_grad()
         for i in range(0, batch.shape[0], self.microbatch):
             micro = batch[i : i + self.microbatch].to(dist_util.dev())
@@ -185,33 +221,43 @@ class TrainLoop:
                 k: v[i : i + self.microbatch].to(dist_util.dev())
                 for k, v in cond.items()
             }
+
             last_batch = (i + self.microbatch) >= batch.shape[0]
             t, weights = self.schedule_sampler.sample(micro.shape[0], dist_util.dev())
 
             compute_losses = functools.partial(
-                self.diffusion.training_losses,
+                self.diffusion.training_losses_segmentation,
                 self.ddp_model,
+                self.classifier,
                 micro,
                 t,
                 model_kwargs=micro_cond,
             )
 
             if last_batch or not self.use_ddp:
-                losses = compute_losses()
+                losses1 = compute_losses()
+
             else:
                 with self.ddp_model.no_sync():
-                    losses = compute_losses()
+                    losses1 = compute_losses()
 
             if isinstance(self.schedule_sampler, LossAwareSampler):
                 self.schedule_sampler.update_with_local_losses(
-                    t, losses["loss"].detach()
+                    t, losses1[0]["loss"].detach()
                 )
+            losses = losses1[0]
+            sample = losses1[1]
 
-            loss = (losses["loss"] * weights).mean()
+            loss = (losses["loss"] * weights).mean()# + losses['loss_cal'] * 10).mean()
+
             log_loss_dict(
                 self.diffusion, t, {k: v * weights for k, v in losses.items()}
             )
             self.mp_trainer.backward(loss)
+            for name, param in self.ddp_model.named_parameters():
+                if param.grad is None:
+                    print(name)
+            return  sample
 
     def _update_ema(self):
         for rate, params in zip(self.ema_rate, self.ema_params):
@@ -235,9 +281,9 @@ class TrainLoop:
             if dist.get_rank() == 0:
                 logger.log(f"saving model {rate}...")
                 if not rate:
-                    filename = f"model{(self.step+self.resume_step):06d}.pt"
+                    filename = f"savedmodel{(self.step+self.resume_step):06d}.pt"
                 else:
-                    filename = f"ema_{rate}_{(self.step+self.resume_step):06d}.pt"
+                    filename = f"emasavedmodel_{rate}_{(self.step+self.resume_step):06d}.pt"
                 with bf.BlobFile(bf.join(get_blob_logdir(), filename), "wb") as f:
                     th.save(state_dict, f)
 
@@ -247,7 +293,7 @@ class TrainLoop:
 
         if dist.get_rank() == 0:
             with bf.BlobFile(
-                bf.join(get_blob_logdir(), f"opt{(self.step+self.resume_step):06d}.pt"),
+                bf.join(get_blob_logdir(), f"optsavedmodel{(self.step+self.resume_step):06d}.pt"),
                 "wb",
             ) as f:
                 th.save(self.opt.state_dict(), f)
