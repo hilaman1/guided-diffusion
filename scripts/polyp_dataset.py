@@ -10,7 +10,7 @@ import cv2
 
 class polyp_dataset(Dataset):
     def __init__(self, images_path, gt_path, images_embeddings_path, gt_embeddings_path, new_image_height,
-                 new_image_width, transform=None):
+                 new_image_width, guided, transform=None):
         super().__init__()
         self.images_path = images_path
         self.gt_path = gt_path
@@ -18,6 +18,7 @@ class polyp_dataset(Dataset):
         self.gt_embeddings_path = gt_embeddings_path
         self.new_image_height = new_image_height
         self.new_image_width = new_image_width
+        self.guided = guided
         self.transform = transform
 
         self.images = os.listdir(os.path.join(self.images_path))
@@ -29,28 +30,31 @@ class polyp_dataset(Dataset):
         return len(self.images)
 
     def __getitem__(self, idx):
-        image_path = self.images[idx]
-        image_embeddings_path = self.images_embeddings[idx]
-        gt_path = self.gt[idx]
-        gt_embeddings_path = self.gt_embeddings[idx]
+        if self.guided:  # Return embeddings
+            image_embeddings_path = self.images_embeddings[idx]
+            gt_embeddings_path = self.gt_embeddings[idx]
+            image_embeddings = torch.load(str(os.path.join(self.images_embeddings_path, image_embeddings_path)))
+            gt_embeddings = torch.load(str(os.path.join(self.gt_embeddings_path, gt_embeddings_path)))
+            image_embeddings = torch.squeeze(image_embeddings, dim=0)
+            gt_embeddings = torch.squeeze(gt_embeddings, dim=0)
 
-        image = plt.imread(str(os.path.join(self.images_path, image_path)))
-        image_embeddings = torch.load(str(os.path.join(self.images_embeddings_path, image_embeddings_path)))
-        gt = plt.imread(str(os.path.join(self.gt_path, gt_path)))
-        gt_embeddings = torch.load(str(os.path.join(self.gt_embeddings_path, gt_embeddings_path)))
+            image_embeddings = image_embeddings.mul_(0.18215)
+            gt_embeddings = gt_embeddings.mul_(0.18215)
+            return image_embeddings, gt_embeddings, ""
 
-        image = cv2.resize(image, (512, 512))
-        gt = cv2.resize(gt, (512, 512))
+        else:  # Return original images
+            image_path = self.images[idx]
+            gt_path = self.gt[idx]
 
-        image = torch.permute(torch.from_numpy(np.copy(image)), (2, 0, 1))
-        gt = torch.permute(torch.from_numpy(np.copy(gt)), (2, 0 ,1))
+            image = plt.imread(str(os.path.join(self.images_path, image_path)))
+            gt = plt.imread(str(os.path.join(self.gt_path, gt_path)))
 
-        image_embeddings = torch.squeeze(image_embeddings, dim=0)
-        gt_embeddings = torch.squeeze(gt_embeddings, dim=0)
+            image = cv2.resize(image, (self.new_image_width, self.new_image_height))
+            gt = cv2.resize(gt, (self.new_image_width, self.new_image_height))
 
-        image_embeddings = image_embeddings.mul_(0.18215)
-        gt_embeddings = gt_embeddings.mul_(0.18215)
-        return gt_embeddings, image_embeddings, ""
+            image = torch.permute(torch.from_numpy(np.copy(image)), (2, 0, 1))
+            gt = torch.permute(torch.from_numpy(np.copy(gt)), (2, 0, 1))
+            return image, gt, ""
 
 
 if __name__ == "__main__":
@@ -60,17 +64,18 @@ if __name__ == "__main__":
     images_embeddings_path = os.path.join(os.getcwd(), "data", "polyps", "train_embeddings", "train_embeddings")
     gt_path = os.path.join(os.getcwd(), "data", "polyps", "train_gt", "train_gt")
     gt_path_embeddings = os.path.join(os.getcwd(), "data", "polyps", "train_gt_embeddings", "train_gt_embeddings")
-
-    transform = transforms.Compose([
-        transforms.Resize((512, 512), antialias=True)
-    ])
+    new_image_height = 64
+    new_image_width = 64
+    guided = False
 
     dataset = polyp_dataset(
         images_path=images_path,
         gt_path=gt_path,
         images_embeddings_path=images_embeddings_path,
         gt_embeddings_path=gt_path_embeddings,
-        transform=transform
+        new_image_height=new_image_height,
+        new_image_width=new_image_width,
+        guided=guided
     )
 
     dataloader = DataLoader(dataset, batch_size=1, shuffle=False)
