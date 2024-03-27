@@ -1,4 +1,3 @@
-
 import sys
 import argparse
 sys.path.append("../")
@@ -14,7 +13,9 @@ from guided_diffusion.script_util import (
     args_to_dict,
     add_dict_to_argparser,
 )
-import torch as th
+import torch
+import torch.nn as nn
+from torch.utils.data import DataLoader
 from guided_diffusion.train_util import TrainLoop
 from visdom import Visdom
 viz = Visdom(port=8850)
@@ -23,11 +24,12 @@ import torchvision.transforms as transforms
 from unet import UNetModel
 from polyp_dataset import polyp_dataset
 
+
 def main():
     args = create_argparser().parse_args()
 
     dist_util.setup_dist(args)
-    logger.configure(dir = args.out_dir)
+    logger.configure(dir=args.out_dir)
 
     logger.log("creating data loader...")
 
@@ -48,40 +50,42 @@ def main():
         gt_path = "C:\\Users\\Admin\\Documents\\GitHub\\diffusion\\data\\polyps\\train_gt\\train_gt"
         images_embeddings_path = "C:\\Users\\Admin\\Documents\\GitHub\\diffusion\\data\\polyps\\train_embeddings\\train_embeddings"
         gt_embeddings_path = "C:\\Users\\Admin\\Documents\\GitHub\\diffusion\\data\\polyps\\train_gt_embeddings\\train_gt_embeddings"
+        new_image_height = 64
+        new_image_width = 64
+        guided = False
         ds = polyp_dataset(
             images_path=images_path,
             gt_path=gt_path,
             images_embeddings_path=images_embeddings_path,
             gt_embeddings_path=gt_embeddings_path,
-            new_image_height=256,
-            new_image_width=256
+            new_image_height=new_image_height,
+            new_image_width=new_image_width,
+            guided=guided
         )
     else:
         tran_list = [transforms.Resize((args.image_size,args.image_size)), transforms.ToTensor(),]
         transform_train = transforms.Compose(tran_list)
-        print("Your current directory : ",args.data_dir)
+        print("Your current directory : ", args.data_dir)
         ds = CustomDataset(args, args.data_dir, transform_train)
         args.in_ch = 4
         
-    datal= th.utils.data.DataLoader(
-        ds,
-        batch_size=args.batch_size,
-        shuffle=True)
-    data = iter(datal)
+    dataloader = DataLoader(ds, batch_size=args.batch_size, shuffle=True)
+    data = iter(dataloader)
 
     logger.log("creating model and diffusion...")
 
     model, diffusion = create_model_and_diffusion(
         **args_to_dict(args, model_and_diffusion_defaults().keys())
     )
+    model = UNetModel(in_channels=3, out_channels=3, channels=32, n_res_blocks=3, attention_levels=[0, 1, 2],
+                      channel_multipliers=[2, 4, 6], condition_channels=3, n_heads=1, d_cond=3)
 
     if args.multi_gpu:
-        model = th.nn.DataParallel(model,device_ids=[int(id) for id in args.multi_gpu.split(',')])
-        model.to(device = th.device('cuda', int(args.gpu_dev)))
+        model = nn.DataParallel(model, device_ids=[int(id) for id in args.multi_gpu.split(',')])
+        model.to(device=torch.device('cuda', int(args.gpu_dev)))
     else:
         model.to(dist_util.dev())
     schedule_sampler = create_named_schedule_sampler(args.schedule_sampler, diffusion,  maxt=args.diffusion_steps)
-
 
     logger.log("training...")
     TrainLoop(
@@ -89,7 +93,7 @@ def main():
         diffusion=diffusion,
         classifier=None,
         data=data,
-        dataloader=datal,
+        dataloader=dataloader,
         batch_size=args.batch_size,
         microbatch=args.microbatch,
         lr=args.lr,
@@ -107,7 +111,7 @@ def main():
 
 def create_argparser():
     defaults = dict(
-        data_name = 'ISIC',
+        data_name='POLYP',
         data_dir="C:\\Users\\Admin\\Documents\\GitHub\\guided-diffusion\\datasets",
         schedule_sampler="uniform",
         lr=1e-4,
@@ -121,8 +125,8 @@ def create_argparser():
         resume_checkpoint=None, #"/results/pretrainedmodel.pt"
         use_fp16=False,
         fp16_scale_growth=1e-3,
-        gpu_dev = "0",
-        multi_gpu = None, #"0,1,2"
+        gpu_dev="0",
+        multi_gpu=None, #"0,1,2"
         out_dir='./results/'
     )
     defaults.update(model_and_diffusion_defaults())

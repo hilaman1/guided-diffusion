@@ -327,6 +327,7 @@ class UNetModel(nn.Module):
             attention_levels: List[int],
             channel_multipliers: List[int],
             n_heads: int,
+            condition_channels: int,
             tf_layers: int = 1,
             d_cond: int = 768):
         """
@@ -340,6 +341,7 @@ class UNetModel(nn.Module):
         """
         super().__init__()
         self.channels = channels
+        self.condition_channels = condition_channels
 
         # Number of levels
         levels = len(channel_multipliers)
@@ -445,8 +447,8 @@ class UNetModel(nn.Module):
         :param time_steps: are the time steps of shape `[batch_size]`
         :param cond: conditioning of shape `[batch_size, n_cond, d_cond]`
         """
-        cond = x[:, 4:, :, :]
-        x = x[:, :4, :, :]
+        cond = x[:, :self.condition_channels, :, :]
+        x = x[:, self.condition_channels:, :, :]
         # To store the input half outputs for skip connections
         x_input_block = []
 

@@ -174,7 +174,6 @@ class TrainLoop:
             or self.step + self.resume_step < self.lr_anneal_steps
         ):
 
-
             try:
                     batch, cond, name = next(data_iter)
             except StopIteration:
@@ -185,7 +184,6 @@ class TrainLoop:
 
             self.run_step(batch, cond)
 
-           
             i += 1
           
             if self.step % self.log_interval == 0:
@@ -201,10 +199,11 @@ class TrainLoop:
             self.save()
 
     def run_step(self, batch, cond):
-        batch=th.cat((batch, cond), dim=1)
+        batch = th.cat((batch, cond), dim=1)
 
-        cond={}
-        sample = self.forward_backward(batch, cond)
+        cond_channels = cond.shape[1]
+        cond = {}
+        sample = self.forward_backward(batch, cond, cond_channels)
         took_step = self.mp_trainer.optimize(self.opt)
         if took_step:
             self._update_ema()
@@ -212,13 +211,12 @@ class TrainLoop:
         self.log_step()
         return sample
 
-    def forward_backward(self, batch, cond):
-
+    def forward_backward(self, batch, cond, cond_channels):
         self.mp_trainer.zero_grad()
         for i in range(0, batch.shape[0], self.microbatch):
-            micro = batch[i : i + self.microbatch].to(dist_util.dev())
+            micro = batch[i: i + self.microbatch].to(dist_util.dev())
             micro_cond = {
-                k: v[i : i + self.microbatch].to(dist_util.dev())
+                k: v[i: i + self.microbatch].to(dist_util.dev())
                 for k, v in cond.items()
             }
 
@@ -231,6 +229,7 @@ class TrainLoop:
                 self.classifier,
                 micro,
                 t,
+                batch.shape[1] - cond_channels,
                 model_kwargs=micro_cond,
             )
 
@@ -257,7 +256,7 @@ class TrainLoop:
             for name, param in self.ddp_model.named_parameters():
                 if param.grad is None:
                     print(name)
-            return  sample
+            return sample
 
     def _update_ema(self):
         for rate, params in zip(self.ema_rate, self.ema_params):

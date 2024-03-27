@@ -970,9 +970,7 @@ class GaussianDiffusion:
         output = th.where((t == 0), decoder_nll, kl)
         return {"output": output, "pred_xstart": out["pred_xstart"]}
 
-
-
-    def training_losses_segmentation(self, model, classifier, x_start, t, model_kwargs=None, noise=None):
+    def training_losses_segmentation(self, model, classifier, x_start, t, batch_channels, model_kwargs=None, noise=None):
         """
         Compute training losses for a single timestep.
         :param model: the model to evaluate loss on.
@@ -987,27 +985,25 @@ class GaussianDiffusion:
         if model_kwargs is None:
             model_kwargs = {}
         if noise is None:
-            noise = th.randn_like(x_start[:, -1:, ...])
+            noise = th.randn_like(x_start[:, -batch_channels:, ...])
 
-
-        mask = x_start[:, -1:, ...]
+        mask = x_start[:, -batch_channels:, ...]
         res = torch.where(mask > 0, 1, 0)   #merge all tumor classes into one to get a binary segmentation mask
 
         res_t = self.q_sample(res, t, noise=noise)     #add noise to the segmentation channel
-        x_t=x_start.float()
-        x_t[:, -1:, ...]=res_t.float()
+        x_t = x_start.float()
+        x_t[:, -batch_channels:, ...] = res_t.float()
         terms = {}
-
 
         if self.loss_type == LossType.MSE or self.loss_type == LossType.BCE_DICE or self.loss_type == LossType.RESCALED_MSE:
 
-            model_output, cal = model(x_t, self._scale_timesteps(t), **model_kwargs)
+            model_output = model(x_t, self._scale_timesteps(t), **model_kwargs)
             if self.model_var_type in [
                 ModelVarType.LEARNED,
                 ModelVarType.LEARNED_RANGE,
             ]:
                 B, C = x_t.shape[:2]
-                C=1
+                C = 1
                 assert model_output.shape == (B, C * 2, *x_t.shape[2:])
                 model_output, model_var_values = th.split(model_output, C, dim=1)
                 # Learn the variance using the variational bound, but don't let
@@ -1035,8 +1031,8 @@ class GaussianDiffusion:
 
             # model_output = (cal > 0.5) * (model_output >0.5) * model_output if 2. * (cal*model_output).sum() / (cal+model_output).sum() < 0.75 else model_output
             # terms["loss_diff"] = nn.BCELoss(model_output, target)
-            terms["loss_diff"] = mean_flat((target - model_output) ** 2 )
-            terms["loss_cal"] = mean_flat((res - cal) ** 2)
+            terms["loss_diff"] = mean_flat((target - model_output) ** 2)
+            # terms["loss_cal"] = mean_flat((res - cal) ** 2)
             # terms["loss_cal"] = nn.BCELoss()(cal.type(th.float), res.type(th.float)) 
             # terms["mse"] = (terms["mse_diff"] + terms["mse_cal"]) / 2.
             if "vb" in terms:

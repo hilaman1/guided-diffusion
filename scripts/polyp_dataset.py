@@ -33,8 +33,10 @@ class polyp_dataset(Dataset):
         if self.guided:  # Return embeddings
             image_embeddings_path = self.images_embeddings[idx]
             gt_embeddings_path = self.gt_embeddings[idx]
+
             image_embeddings = torch.load(str(os.path.join(self.images_embeddings_path, image_embeddings_path)))
             gt_embeddings = torch.load(str(os.path.join(self.gt_embeddings_path, gt_embeddings_path)))
+
             image_embeddings = torch.squeeze(image_embeddings, dim=0)
             gt_embeddings = torch.squeeze(gt_embeddings, dim=0)
 
@@ -52,8 +54,8 @@ class polyp_dataset(Dataset):
             image = cv2.resize(image, (self.new_image_width, self.new_image_height))
             gt = cv2.resize(gt, (self.new_image_width, self.new_image_height))
 
-            image = torch.permute(torch.from_numpy(np.copy(image)), (2, 0, 1))
-            gt = torch.permute(torch.from_numpy(np.copy(gt)), (2, 0, 1))
+            image = torch.permute(torch.from_numpy(np.copy(image)), (2, 0, 1)).float()
+            gt = torch.permute(torch.from_numpy(np.copy(gt)), (2, 0, 1)).float()
             return image, gt, ""
 
 
