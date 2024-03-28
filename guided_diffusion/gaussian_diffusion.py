@@ -272,7 +272,7 @@ class GaussianDiffusion:
         model_output = model(x, self._scale_timesteps(t), **model_kwargs)
         if isinstance(model_output, tuple):
             model_output, cal = model_output
-        x=x[:,:4,...]  #loss is only calculated on the last channel, not on the input brain MR image
+        x=x[:,-model_output.shape[1]:,...]  #loss is only calculated on the last channel, not on the input brain MR image
         if self.model_var_type in [ModelVarType.LEARNED, ModelVarType.LEARNED_RANGE]:
             assert model_output.shape == (B, C * 2, *x.shape[2:])
             model_output, model_var_values = th.split(model_output, C, dim=1)
@@ -447,7 +447,7 @@ class GaussianDiffusion:
             denoised_fn=denoised_fn,
             model_kwargs=model_kwargs,
         )
-        noise = th.randn_like(x[:, :4,...])
+        noise = th.randn_like(x[:, -out["mean"].shape[1]:,...])
         nonzero_mask = (
             (t != 0).float().view(-1, *([1] * (len(x.shape) - 1)))
         )
@@ -626,7 +626,7 @@ class GaussianDiffusion:
             img = th.randn(*shape, device=device)
         indices = list(range(time))[::-1]
         org_c = img.size(1)
-        org_MRI = img[:, 4:, ...]      #original brain MR image
+        org_MRI = img[:, :shape[1], ...]      #original brain MR image
         if progress:
             # Lazy import so that we don't depend on tqdm.
             from tqdm.auto import tqdm

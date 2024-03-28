@@ -21,7 +21,8 @@ from visdom import Visdom
 viz = Visdom(port=8850)
 import torchvision.transforms as transforms
 
-from unet import UNetModel
+from models.unet import UNetModel
+from models.DiT import DiT_models
 from polyp_dataset import polyp_dataset
 
 
@@ -53,6 +54,7 @@ def main():
         new_image_height = 64
         new_image_width = 64
         guided = False
+        normalize = True
         ds = polyp_dataset(
             images_path=images_path,
             gt_path=gt_path,
@@ -60,7 +62,8 @@ def main():
             gt_embeddings_path=gt_embeddings_path,
             new_image_height=new_image_height,
             new_image_width=new_image_width,
-            guided=guided
+            guided=guided,
+            normalize=normalize,
         )
     else:
         tran_list = [transforms.Resize((args.image_size,args.image_size)), transforms.ToTensor(),]
@@ -79,6 +82,7 @@ def main():
     )
     model = UNetModel(in_channels=3, out_channels=3, channels=32, n_res_blocks=3, attention_levels=[0, 1, 2],
                       channel_multipliers=[2, 4, 6], condition_channels=3, n_heads=1, d_cond=3)
+    # model = DiT_models["DiT-B/4"]
 
     if args.multi_gpu:
         model = nn.DataParallel(model, device_ids=[int(id) for id in args.multi_gpu.split(',')])

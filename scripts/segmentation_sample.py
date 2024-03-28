@@ -1,5 +1,3 @@
-
-
 import argparse
 import os
 from ssl import OP_NO_TLSv1
@@ -11,7 +9,8 @@ import random
 sys.path.append(".")
 import numpy as np
 import time
-import torch as th
+import torch
+from torch.utils.data import DataLoader
 from PIL import Image
 import torch.distributed as dist
 from guided_diffusion import dist_util, logger
@@ -27,12 +26,12 @@ from guided_diffusion.script_util import (
     args_to_dict,
 )
 import torchvision.transforms as transforms
-from unet import UNetModel
+from models.unet import UNetModel
 from torchsummary import summary
 from polyp_dataset import polyp_dataset
 seed=10
-th.manual_seed(seed)
-th.cuda.manual_seed_all(seed)
+torch.manual_seed(seed)
+torch.cuda.manual_seed_all(seed)
 np.random.seed(seed)
 random.seed(seed)
 
@@ -66,18 +65,22 @@ def main():
         gt_path = "C:\\Users\\Admin\\Documents\\GitHub\\diffusion\\data\\polyps\\train_gt\\train_gt"
         images_embeddings_path = "C:\\Users\\Admin\\Documents\\GitHub\\diffusion\\data\\polyps\\train_embeddings\\train_embeddings"
         gt_embeddings_path = "C:\\Users\\Admin\\Documents\\GitHub\\diffusion\\data\\polyps\\train_gt_embeddings\\train_gt_embeddings"
+        new_image_height = 64
+        new_image_width = 64
+        guided = False
+        normalize = True
         ds = polyp_dataset(
             images_path=images_path,
             gt_path=gt_path,
             images_embeddings_path=images_embeddings_path,
             gt_embeddings_path=gt_embeddings_path,
-            new_image_height=256,
-            new_image_width=256
+            new_image_height=new_image_height,
+            new_image_width=new_image_width,
+            guided=guided,
+            normalize=normalize
         )
-    datal = th.utils.data.DataLoader(
-        ds,
-        batch_size=args.batch_size,
-        shuffle=True)
+
+    datal = DataLoader(ds, batch_size=args.batch_size, shuffle=True)
     data = iter(datal)
 
     logger.log("creating model and diffusion...")
@@ -85,8 +88,8 @@ def main():
     model, diffusion = create_model_and_diffusion(
         **args_to_dict(args, model_and_diffusion_defaults().keys())
     )
-    model = UNetModel(in_channels=4, out_channels=4, channels=32, n_res_blocks=3, attention_levels=[0, 1, 2],
-                      channel_multipliers=[2, 4, 6], n_heads=1, d_cond=4)
+    model = UNetModel(in_channels=3, out_channels=3, channels=32, n_res_blocks=3, attention_levels=[0, 1, 2],
+                      channel_multipliers=[2, 4, 6], condition_channels=3, n_heads=1, d_cond=3)
     all_images = []
 
 
@@ -94,7 +97,6 @@ def main():
     from collections import OrderedDict
     new_state_dict = OrderedDict()
     for k, v in state_dict.items():
-        # name = k[7:] # remove `module.`
         if 'module.' in k:
             new_state_dict[k[7:]] = v
             # load params
@@ -108,9 +110,9 @@ def main():
         model.convert_to_fp16()
     model.eval()
     for _ in range(len(data)):
-        b, m, path = next(data)  #should return an image from the dataloader "data"
-        c = th.randn_like(b[:, :4, ...])
-        img = th.cat((c, m), dim=1)     #add a noise channel$
+        condition, seg, path = next(data)  #should return an image from the dataloader "data"
+        noise = torch.randn_like(seg)
+        img = torch.cat((condition, noise), dim=1)     #add a noise channel$
         if args.data_name == 'ISIC':
             slice_ID=path[0].split("_")[-1].split('.')[0]
         elif args.data_name == 'BRATS':
@@ -119,8 +121,8 @@ def main():
 
         logger.log("sampling...")
 
-        start = th.cuda.Event(enable_timing=True)
-        end = th.cuda.Event(enable_timing=True)
+        start = torch.cuda.Event(enable_timing=True)
+        end = torch.cuda.Event(enable_timing=True)
         enslist = []
 
         for i in range(args.num_ensemble):  #this is for the generation of an ensemble of 5 masks.
@@ -138,10 +140,10 @@ def main():
             )
 
             end.record()
-            th.cuda.synchronize()
+            torch.cuda.synchronize()
             print('time for 1 sample', start.elapsed_time(end))  #time measurement for the generation of 1 sample
 
-            co = th.tensor(cal_out)
+            co = torch.tensor(cal_out)
             if args.version == 'new':
                 enslist.append(sample[:,-1,:,:])
             else:
@@ -153,8 +155,8 @@ def main():
                 # print('cal size is',cal.size())
                 if args.data_name == 'ISIC':
                     # s = th.tensor(sample)[:,-1,:,:].unsqueeze(1).repeat(1, 3, 1, 1)
-                    o = th.tensor(org)[:,:-1,:,:]
-                    c = th.tensor(cal).repeat(1, 3, 1, 1)
+                    o = torch.tensor(org)[:,:-1,:,:]
+                    c = torch.tensor(cal).repeat(1, 3, 1, 1)
                     # co = co.repeat(1, 3, 1, 1)
 
                     s = sample[:,-1,:,:]
@@ -168,19 +170,19 @@ def main():
 
                     tup = (ss,o,c)
                 elif args.data_name == 'BRATS':
-                    s = th.tensor(sample)[:,-1,:,:].unsqueeze(1)
-                    m = th.tensor(m.to(device = 'cuda:0'))[:,0,:,:].unsqueeze(1)
-                    o1 = th.tensor(org)[:,0,:,:].unsqueeze(1)
-                    o2 = th.tensor(org)[:,1,:,:].unsqueeze(1)
-                    o3 = th.tensor(org)[:,2,:,:].unsqueeze(1)
-                    o4 = th.tensor(org)[:,3,:,:].unsqueeze(1)
-                    c = th.tensor(cal)
+                    s = torch.tensor(sample)[:,-1,:,:].unsqueeze(1)
+                    m = torch.tensor(m.to(device = 'cuda:0'))[:,0,:,:].unsqueeze(1)
+                    o1 = torch.tensor(org)[:,0,:,:].unsqueeze(1)
+                    o2 = torch.tensor(org)[:,1,:,:].unsqueeze(1)
+                    o3 = torch.tensor(org)[:,2,:,:].unsqueeze(1)
+                    o4 = torch.tensor(org)[:,3,:,:].unsqueeze(1)
+                    c = torch.tensor(cal)
 
                     tup = (o1/o1.max(),o2/o2.max(),o3/o3.max(),o4/o4.max(),m,s,c,co)
 
-                compose = th.cat(tup,0)
+                compose = torch.cat(tup,0)
                 vutils.save_image(compose, fp = os.path.join(args.out_dir, str(slice_ID)+'_output'+str(i)+".jpg"), nrow = 1, padding = 10)
-        ensres = staple(th.stack(enslist,dim=0)).squeeze(0)
+        ensres = staple(torch.stack(enslist,dim=0)).squeeze(0)
         vutils.save_image(ensres, fp = os.path.join(args.out_dir, str(slice_ID)+'_output_ens'+".jpg"), nrow = 1, padding = 10)
 
 def create_argparser():
@@ -191,7 +193,7 @@ def create_argparser():
         num_samples=1,
         batch_size=1,
         use_ddim=False,
-        model_path="./results/emasavedmodel_0.9999_005000.pt",         #path to pretrain model
+        model_path="./results/savedmodel003000.pt",         #path to pretrain model
         num_ensemble=5,      #number of samples in the ensemble
         gpu_dev="0",
         out_dir='./results/',
@@ -205,5 +207,4 @@ def create_argparser():
 
 
 if __name__ == "__main__":
-
     main()

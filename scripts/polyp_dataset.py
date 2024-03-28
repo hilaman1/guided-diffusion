@@ -6,11 +6,12 @@ import os
 import matplotlib.pyplot as plt
 from diffusers.models import AutoencoderKL
 import cv2
+import torchvision.transforms as transforms
 
 
 class polyp_dataset(Dataset):
     def __init__(self, images_path, gt_path, images_embeddings_path, gt_embeddings_path, new_image_height,
-                 new_image_width, guided, transform=None):
+                 new_image_width, guided, normalize, transform=None):
         super().__init__()
         self.images_path = images_path
         self.gt_path = gt_path
@@ -19,6 +20,7 @@ class polyp_dataset(Dataset):
         self.new_image_height = new_image_height
         self.new_image_width = new_image_width
         self.guided = guided
+        self.normlaize = normalize
         self.transform = transform
 
         self.images = os.listdir(os.path.join(self.images_path))
@@ -56,6 +58,9 @@ class polyp_dataset(Dataset):
 
             image = torch.permute(torch.from_numpy(np.copy(image)), (2, 0, 1)).float()
             gt = torch.permute(torch.from_numpy(np.copy(gt)), (2, 0, 1)).float()
+
+            if self.normlaize:
+                image = (image - torch.mean(image)) / (torch.std(image))
             return image, gt, ""
 
 
