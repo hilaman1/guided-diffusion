@@ -505,8 +505,8 @@ class GaussianDiffusion:
     def p_sample_loop_known(
         self,
         model,
-        shape,
-        img,
+        noise_shape,
+        condition,
         step = 1000,
         org=None,
         noise=None,
@@ -521,11 +521,9 @@ class GaussianDiffusion:
     ):
         if device is None:
             device = next(model.parameters()).device
-        assert isinstance(shape, (tuple, list))
-        img = img.to(device)
-        noise = th.randn_like(img[:, :1, ...]).to(device)
-        x_noisy = torch.cat((img[:, :-1,  ...], noise), dim=1)  #add noise as the last channel
-        img=img.to(device)
+
+        noise = th.randn(noise_shape).to(device)
+        x_noisy = torch.cat((condition, noise), dim=1)  #add noise as the last channel
 
         if self.dpm_solver:
             final = {}
@@ -562,7 +560,7 @@ class GaussianDiffusion:
             name = ''.join(random.choice(letters) for i in range(10)) 
             for sample in self.p_sample_loop_progressive(
                 model,
-                shape,
+                condition.shape,
                 time = step,
                 noise=x_noisy,
                 clip_denoised=clip_denoised,
@@ -574,18 +572,6 @@ class GaussianDiffusion:
                 progress=progress,
             ):
                 final = sample
-                # i += 1
-                # '''vis each step sample'''
-                # if i % 5 == 0:
-
-                #     o1 = th.tensor(img)[:,0,:,:].unsqueeze(1)
-                #     o2 = th.tensor(img)[:,1,:,:].unsqueeze(1)
-                #     o3 = th.tensor(img)[:,2,:,:].unsqueeze(1)
-                #     o4 = th.tensor(img)[:,3,:,:].unsqueeze(1)
-                #     s = th.tensor(final["sample"])[:,-1,:,:].unsqueeze(1)
-                #     tup = (o1/o1.max(),o2/o2.max(),o3/o3.max(),o4/o4.max(),s)
-                #     compose = th.cat(tup,0)
-                #     vutils.save_image(s, fp = os.path.join('../res_temp_norm_6000_100', name+str(i)+".jpg"), nrow = 1, padding = 10)
 
             if dice_score(final["sample"][:,-1,:,:].unsqueeze(1), final["cal"]) < 0.65:
                 cal_out = torch.clamp(final["cal"] + 0.25 * final["sample"][:,-1,:,:].unsqueeze(1), 0, 1)
@@ -593,7 +579,7 @@ class GaussianDiffusion:
                 cal_out = torch.clamp(final["cal"] * 0.5 + 0.5 * final["sample"][:,-1,:,:].unsqueeze(1), 0, 1)
             
 
-        return final["sample"], x_noisy, img, final["cal"], cal_out
+        return final["sample"], x_noisy, condition, final["cal"], cal_out
 
     def p_sample_loop_progressive(
         self,

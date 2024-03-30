@@ -6,12 +6,11 @@ import os
 import matplotlib.pyplot as plt
 from diffusers.models import AutoencoderKL
 import cv2
-import torchvision.transforms as transforms
 
 
 class polyp_dataset(Dataset):
     def __init__(self, images_path, gt_path, images_embeddings_path, gt_embeddings_path, new_image_height,
-                 new_image_width, guided, normalize, transform=None):
+                 new_image_width, guided, normalize, binary_seg, transform=None):
         super().__init__()
         self.images_path = images_path
         self.gt_path = gt_path
@@ -20,7 +19,8 @@ class polyp_dataset(Dataset):
         self.new_image_height = new_image_height
         self.new_image_width = new_image_width
         self.guided = guided
-        self.normlaize = normalize
+        self.normalize = normalize
+        self.binary_seg = binary_seg
         self.transform = transform
 
         self.images = os.listdir(os.path.join(self.images_path))
@@ -56,12 +56,18 @@ class polyp_dataset(Dataset):
             image = cv2.resize(image, (self.new_image_width, self.new_image_height))
             gt = cv2.resize(gt, (self.new_image_width, self.new_image_height))
 
+            if self.binary_seg:
+                gray_gt = cv2.cvtColor(gt, cv2.COLOR_RGB2GRAY)
+                _, gt = cv2.threshold(gray_gt, int(np.mean(gray_gt)), 255, cv2.THRESH_BINARY)
+                gt[gt == 255] = 1
+                gt = gt[:, :, None]
+
             image = torch.permute(torch.from_numpy(np.copy(image)), (2, 0, 1)).float()
             gt = torch.permute(torch.from_numpy(np.copy(gt)), (2, 0, 1)).float()
 
-            if self.normlaize:
+            if self.normalize:
                 image = (image - torch.mean(image)) / (torch.std(image))
-            return image, gt, ""
+            return gt, image, ""
 
 
 if __name__ == "__main__":
@@ -74,6 +80,8 @@ if __name__ == "__main__":
     new_image_height = 64
     new_image_width = 64
     guided = False
+    normalize = True
+    binary_seg = True
 
     dataset = polyp_dataset(
         images_path=images_path,
@@ -82,7 +90,9 @@ if __name__ == "__main__":
         gt_embeddings_path=gt_path_embeddings,
         new_image_height=new_image_height,
         new_image_width=new_image_width,
-        guided=guided
+        guided=guided,
+        normalize=normalize,
+        binary_seg=binary_seg
     )
 
     dataloader = DataLoader(dataset, batch_size=1, shuffle=False)
@@ -97,12 +107,15 @@ if __name__ == "__main__":
         if i == 3:
             break
 
-        with torch.no_grad():
-            decoded_image = vae.decode(image_embeddings.to(device)).sample
-            decoded_gt = vae.decode(gt_embeddings.to(device)).sample
+        decoded_image = image
+        decoded_gt = gt
+        if guided:
+            with torch.no_grad():
+                decoded_image = vae.decode(image_embeddings.to(device)).sample
+                decoded_gt = vae.decode(gt_embeddings.to(device)).sample
 
-        decoded_image = decoded_image.cpu().detach()
-        decoded_gt = decoded_gt.cpu().detach()
+            decoded_image = decoded_image.cpu().detach()
+            decoded_gt = decoded_gt.cpu().detach()
 
         axis[0, i].imshow(image)
         axis[1, i].imshow(gt)

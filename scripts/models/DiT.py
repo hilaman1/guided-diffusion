@@ -228,6 +228,7 @@ class DiT(nn.Module):
         depth=28,
         num_heads=16,
         mlp_ratio=4.0,
+        condition_channels=3,
         class_dropout_prob=0.1,
         num_classes=1000,
         learn_sigma=True,
@@ -238,6 +239,7 @@ class DiT(nn.Module):
         self.out_channels = in_channels * 2 if learn_sigma else in_channels
         self.patch_size = patch_size
         self.num_heads = num_heads
+        self.condition_channels = condition_channels
 
         # self.process = process(in_channels, hidden_size)
         self.x_embedder = PatchEmbed(input_size, patch_size, in_channels, hidden_size, bias=True)
@@ -309,15 +311,18 @@ class DiT(nn.Module):
         imgs = x.reshape(shape=(x.shape[0], c, h * p, h * p))
         return imgs
 
-    def forward(self, x, t, y):
+    def forward(self, x, t):
         """
         Forward pass of DiT.
         x: (N, C, H, W) tensor of spatial inputs (images or latent representations of images)
         t: (N,) tensor of diffusion timesteps
         y: (N,) tensor of class labels
         """
+        cond = x[:, :self.condition_channels, :, :]
+        x = x[:, self.condition_channels:, :, :]
+
         x = self.x_embedder(x) + self.pos_embed  # (N, T, D), where T = H * W / patch_size ** 2
-        y = self.y_embedder(y)                   # (N, T, D), where T = H * W / patch_size ** 2
+        y = self.y_embedder(cond)                   # (N, T, D), where T = H * W / patch_size ** 2
 
         t = self.t_embedder(t)                   # (N, D)
         c = t                                    # (N, D)

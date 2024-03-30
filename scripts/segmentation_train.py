@@ -1,12 +1,11 @@
+import os
+import os.path
 import sys
 import argparse
 sys.path.append("../")
 sys.path.append("./")
 from guided_diffusion import dist_util, logger
 from guided_diffusion.resample import create_named_schedule_sampler
-from guided_diffusion.bratsloader import BRATSDataset, BRATSDataset3D
-from guided_diffusion.isicloader import ISICDataset
-from guided_diffusion.custom_dataset_loader import CustomDataset
 from guided_diffusion.script_util import (
     model_and_diffusion_defaults,
     create_model_and_diffusion,
@@ -17,9 +16,6 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from guided_diffusion.train_util import TrainLoop
-from visdom import Visdom
-viz = Visdom(port=8850)
-import torchvision.transforms as transforms
 
 from models.unet import UNetModel
 from models.DiT import DiT_models
@@ -34,43 +30,26 @@ def main():
 
     logger.log("creating data loader...")
 
-    if args.data_name == 'ISIC':
-        tran_list = [transforms.Resize((args.image_size,args.image_size)), transforms.ToTensor(),]
-        transform_train = transforms.Compose(tran_list)
-
-        ds = ISICDataset(args, args.data_dir, transform_train)
-        args.in_ch = 4
-    elif args.data_name == 'BRATS':
-        tran_list = [transforms.Resize((args.image_size,args.image_size)),]
-        transform_train = transforms.Compose(tran_list)
-
-        ds = BRATSDataset3D(args.data_dir, transform_train, test_flag=False)
-        args.in_ch = 5
-    elif args.data_name == "POLYP":
-        images_path = "C:\\Users\\Admin\\Documents\\GitHub\\diffusion\\data\\polyps\\train\\train"
-        gt_path = "C:\\Users\\Admin\\Documents\\GitHub\\diffusion\\data\\polyps\\train_gt\\train_gt"
-        images_embeddings_path = "C:\\Users\\Admin\\Documents\\GitHub\\diffusion\\data\\polyps\\train_embeddings\\train_embeddings"
-        gt_embeddings_path = "C:\\Users\\Admin\\Documents\\GitHub\\diffusion\\data\\polyps\\train_gt_embeddings\\train_gt_embeddings"
-        new_image_height = 64
-        new_image_width = 64
-        guided = False
-        normalize = True
-        ds = polyp_dataset(
-            images_path=images_path,
-            gt_path=gt_path,
-            images_embeddings_path=images_embeddings_path,
-            gt_embeddings_path=gt_embeddings_path,
-            new_image_height=new_image_height,
-            new_image_width=new_image_width,
-            guided=guided,
-            normalize=normalize,
-        )
-    else:
-        tran_list = [transforms.Resize((args.image_size,args.image_size)), transforms.ToTensor(),]
-        transform_train = transforms.Compose(tran_list)
-        print("Your current directory : ", args.data_dir)
-        ds = CustomDataset(args, args.data_dir, transform_train)
-        args.in_ch = 4
+    images_path = os.path.join(os.getcwd(), "data", "polyps", "train", "train")
+    gt_path = os.path.join(os.getcwd(), "data", "polyps", "train_gt", "train_gt")
+    images_embeddings_path = os.path.join(os.getcwd(), "data", "polyps", "train_embeddings", "train_embeddings")
+    gt_embeddings_path = os.path.join(os.getcwd(), "data", "polyps", "train_gt_embeddings", "train_gt_embeddings")
+    new_image_height = 64
+    new_image_width = 64
+    guided = False
+    normalize = True
+    binary_seg = True
+    ds = polyp_dataset(
+        images_path=images_path,
+        gt_path=gt_path,
+        images_embeddings_path=images_embeddings_path,
+        gt_embeddings_path=gt_embeddings_path,
+        new_image_height=new_image_height,
+        new_image_width=new_image_width,
+        guided=guided,
+        normalize=normalize,
+        binary_seg=binary_seg
+    )
         
     dataloader = DataLoader(ds, batch_size=args.batch_size, shuffle=True)
     data = iter(dataloader)
@@ -80,9 +59,25 @@ def main():
     model, diffusion = create_model_and_diffusion(
         **args_to_dict(args, model_and_diffusion_defaults().keys())
     )
-    model = UNetModel(in_channels=3, out_channels=3, channels=32, n_res_blocks=3, attention_levels=[0, 1, 2],
-                      channel_multipliers=[2, 4, 6], condition_channels=3, n_heads=1, d_cond=3)
-    # model = DiT_models["DiT-B/4"]
+
+    condition_channels = 3
+    seg_channels = 1
+    unet_channels = 32
+    res_blocks = 3
+    attention_levels = [0, 1, 2]
+    channel_multipliers = [2, 4, 6]
+    n_heads = 1
+    d_cond = 3
+    model = UNetModel(in_channels=seg_channels,
+                      out_channels=seg_channels,
+                      channels=unet_channels,
+                      n_res_blocks=res_blocks,
+                      attention_levels=attention_levels,
+                      channel_multipliers=channel_multipliers,
+                      condition_channels=condition_channels,
+                      n_heads=n_heads,
+                      d_cond=d_cond)
+    # model = DiT_models["DiT-B/4"](condition_channels=condition_channels)
 
     if args.multi_gpu:
         model = nn.DataParallel(model, device_ids=[int(id) for id in args.multi_gpu.split(',')])
