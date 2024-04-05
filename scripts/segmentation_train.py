@@ -1,3 +1,4 @@
+import os.path
 import sys
 import argparse
 sys.path.append("../")
@@ -46,10 +47,10 @@ def main():
         ds = BRATSDataset3D(args.data_dir, transform_train, test_flag=False)
         args.in_ch = 5
     elif args.data_name == "POLYP":
-        images_path = "C:\\Users\\Admin\\Documents\\GitHub\\diffusion\\data\\polyps\\train\\train"
-        gt_path = "C:\\Users\\Admin\\Documents\\GitHub\\diffusion\\data\\polyps\\train_gt\\train_gt"
-        images_embeddings_path = "C:\\Users\\Admin\\Documents\\GitHub\\diffusion\\data\\polyps\\train_embeddings\\train_embeddings"
-        gt_embeddings_path = "C:\\Users\\Admin\\Documents\\GitHub\\diffusion\\data\\polyps\\train_gt_embeddings\\train_gt_embeddings"
+        images_path = os.path.join(os.getcwd(), "data", "polyps", "train", "train")
+        gt_path = os.path.join(os.getcwd(), "data", "polyps", "train_gt", "train_gt")
+        images_embeddings_path = os.path.join(os.getcwd(), "data", "polyps", "train_embeddings", "train_embeddings")
+        gt_embeddings_path = os.path.join(os.getcwd(), "data", "polyps", "train_gt_embeddings", "train_gt_embeddings")
         new_image_height = 64
         new_image_width = 64
         guided = False
