@@ -56,7 +56,7 @@ class polyp_dataset(Dataset):
 
             image = torch.permute(torch.from_numpy(np.copy(image)), (2, 0, 1)).float()
             gt = torch.permute(torch.from_numpy(np.copy(gt)), (2, 0, 1)).float()
-            return image, gt, ""
+            return gt, image, ""
 
 
 if __name__ == "__main__":
