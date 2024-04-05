@@ -122,8 +122,8 @@ class DiTBlock(nn.Module):
         shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = self.adaLN_modulation(c).chunk(6, dim=1)
         x = x + gate_msa.unsqueeze(1) * self.attn(modulate(self.norm1(x), shift_msa, scale_msa))
         normed_x = self.norm3(x)
-        # normed_y = self.norm4(y)
-        x = x + self.cross_attention(normed_x, y, y)[0]
+        normed_y = self.norm4(y)
+        x = x + self.cross_attention(normed_x, normed_y, y)[0]
         x = x + gate_mlp.unsqueeze(1) * self.mlp(modulate(self.norm2(x), shift_mlp, scale_mlp))
         return x
 
@@ -244,7 +244,7 @@ class DiT(nn.Module):
         # self.process = process(in_channels, hidden_size)
         self.x_embedder = PatchEmbed(input_size, patch_size, in_channels, hidden_size, bias=True)
         self.t_embedder = TimestepEmbedder(hidden_size)
-        self.y_embedder = PatchEmbed(input_size, patch_size, in_channels, hidden_size, bias=True)
+        self.y_embedder = PatchEmbed(input_size, patch_size, condition_channels, hidden_size, bias=True)
 
         num_patches = self.x_embedder.num_patches
         # Will use fixed sin-cos embedding:
@@ -332,14 +332,14 @@ class DiT(nn.Module):
         x = self.unpatchify(x)                   # (N, out_channels, H, W)
         return x
 
-    def forward_with_cfg(self, x, t, y, cfg_scale):
+    def forward_with_cfg(self, x, t, cfg_scale):
         """
         Forward pass of DiT, but also batches the unconditional forward pass for classifier-free guidance.
         """
         # https://github.com/openai/glide-text2im/blob/main/notebooks/text2im.ipynb
         half = x[: len(x) // 2]
         combined = torch.cat([half, half], dim=0)
-        model_out = self.forward(combined, t, y)
+        model_out = self.forward(combined, t)
         # For exact reproducibility reasons, we apply classifier-free guidance on only
         # three channels by default. The standard approach to cfg applies it to all channels.
         # This can be done by uncommenting the following line and commenting-out the line following that.

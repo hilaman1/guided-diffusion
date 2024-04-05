@@ -68,16 +68,19 @@ def main():
     channel_multipliers = [2, 4, 6]
     n_heads = 1
     d_cond = 3
-    model = UNetModel(in_channels=seg_channels,
-                      out_channels=seg_channels,
-                      channels=unet_channels,
-                      n_res_blocks=res_blocks,
-                      attention_levels=attention_levels,
-                      channel_multipliers=channel_multipliers,
-                      condition_channels=condition_channels,
-                      n_heads=n_heads,
-                      d_cond=d_cond)
-    # model = DiT_models["DiT-B/4"](condition_channels=condition_channels)
+    # model = UNetModel(in_channels=seg_channels,
+    #                   out_channels=seg_channels,
+    #                   channels=unet_channels,
+    #                   n_res_blocks=res_blocks,
+    #                   attention_levels=attention_levels,
+    #                   channel_multipliers=channel_multipliers,
+    #                   condition_channels=condition_channels,
+    #                   n_heads=n_heads,
+    #                   d_cond=d_cond)
+    model = DiT_models["DiT-B/4"](input_size=new_image_height,
+                                  in_channels=seg_channels,
+                                  condition_channels=condition_channels,
+                                  learn_sigma=False)
 
     if args.multi_gpu:
         model = nn.DataParallel(model, device_ids=[int(id) for id in args.multi_gpu.split(',')])

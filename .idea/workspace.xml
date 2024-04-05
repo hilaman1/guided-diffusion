@@ -6,10 +6,7 @@
   <component name="ChangeListManager">
     <list default="true" id="3103e7da-fe59-4084-b58a-974be54e4744" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/guided_diffusion/gaussian_diffusion.py" beforeDir="false" afterPath="$PROJECT_DIR$/guided_diffusion/gaussian_diffusion.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/guided_diffusion/train_util.py" beforeDir="false" afterPath="$PROJECT_DIR$/guided_diffusion/train_util.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/scripts/models/DiT.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/models/DiT.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scripts/polyp_dataset.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/polyp_dataset.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/scripts/segmentation_sample.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/segmentation_sample.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/scripts/segmentation_train.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/segmentation_train.py" afterDir="false" />
     </list>
@@ -29,14 +26,14 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;last_opened_file_path&quot;: &quot;C:/Users/Admin/Documents/GitHub/MedSegDiff&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.general&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "RunOnceActivity.OpenProjectViewOnStart": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "last_opened_file_path": "C:/Users/Admin/Documents/GitHub/diffusion",
+    "settings.editor.selected.configurable": "preferences.general"
   }
-}</component>
+}]]></component>
   <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
   <component name="TaskManager">
     <task active="true" id="Default" summary="Default task">
@@ -68,16 +65,6 @@
           <option name="timeStamp" value="19" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/scripts/segmentation_sample.py</url>
-          <line>120</line>
-          <option name="timeStamp" value="53" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/scripts/segmentation_sample.py</url>
-          <line>129</line>
-          <option name="timeStamp" value="54" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/guided_diffusion/gaussian_diffusion.py</url>
           <line>970</line>
           <option name="timeStamp" value="61" />
@@ -86,6 +73,21 @@
           <url>file://$PROJECT_DIR$/scripts/segmentation_train.py</url>
           <line>32</line>
           <option name="timeStamp" value="65" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/scripts/segmentation_sample.py</url>
+          <line>155</line>
+          <option name="timeStamp" value="68" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/guided_diffusion/train_util.py</url>
+          <line>169</line>
+          <option name="timeStamp" value="69" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/scripts/models/DiT.py</url>
+          <line>320</line>
+          <option name="timeStamp" value="70" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>

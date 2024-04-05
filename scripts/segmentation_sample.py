@@ -16,7 +16,9 @@ from guided_diffusion.script_util import (
     args_to_dict,
 )
 from models.unet import UNetModel
+from models.DiT import DiT_models
 from polyp_dataset import polyp_dataset
+from diffusers import DDPMScheduler
 
 seed=10
 torch.manual_seed(seed)
@@ -67,6 +69,14 @@ def main():
         **args_to_dict(args, model_and_diffusion_defaults().keys())
     )
 
+    diffusion = DDPMScheduler(
+        num_train_timesteps=1000,
+        beta_start=0.00085,
+        beta_end=0.0120,
+        beta_schedule="linear",
+        clip_sample=True
+    )
+
     condition_channels = 3
     seg_channels = 1
     unet_channels = 32
@@ -75,16 +85,19 @@ def main():
     channel_multipliers = [2, 4, 6]
     n_heads = 1
     d_cond = 3
-    model = UNetModel(in_channels=seg_channels,
-                      out_channels=seg_channels,
-                      channels=unet_channels,
-                      n_res_blocks=res_blocks,
-                      attention_levels=attention_levels,
-                      channel_multipliers=channel_multipliers,
-                      condition_channels=condition_channels,
-                      n_heads=n_heads,
-                      d_cond=d_cond)
-
+    # model = UNetModel(in_channels=seg_channels,
+    #                   out_channels=seg_channels,
+    #                   channels=unet_channels,
+    #                   n_res_blocks=res_blocks,
+    #                   attention_levels=attention_levels,
+    #                   channel_multipliers=channel_multipliers,
+    #                   condition_channels=condition_channels,
+    #                   n_heads=n_heads,
+    #                   d_cond=d_cond)
+    model = DiT_models["DiT-B/4"](input_size=new_image_height,
+                                  in_channels=1,
+                                  condition_channels=3,
+                                  learn_sigma=False)
     state_dict = dist_util.load_state_dict(args.model_path, map_location=device)
 
     from collections import OrderedDict
@@ -103,33 +116,52 @@ def main():
         model.convert_to_fp16()
 
     model.eval()
+    diffusion.set_timesteps(50, device)
     for batch_idx, (seg, condition, path) in enumerate(dataloader):
         logger.log("sampling...")
 
         seg = seg.to(device)
         condition = condition.to(device)
+        noise = torch.FloatTensor(torch.randn(seg.shape, dtype=torch.float32)).to(device)
 
-        start = torch.cuda.Event(enable_timing=True)
-        end = torch.cuda.Event(enable_timing=True)
+        # start = torch.cuda.Event(enable_timing=True)
+        # end = torch.cuda.Event(enable_timing=True)
+        # for i in range(args.num_ensemble):  #this is for the generation of an ensemble of 5 masks.
+        #     model_kwargs = {}
+            # start.record()
+            # sample_fn = (
+            #     diffusion.p_sample_loop_known if not args.use_ddim else diffusion.ddim_sample_loop_known
+            # )
+            # sample, x_noisy, org, cal, cal_out = sample_fn(
+            #     model,
+            #     seg.shape,
+            #     condition,
+            #     step=1000,
+            #     clip_denoised=args.clip_denoised,
+            #     model_kwargs=model_kwargs,
+            # )
+            #
+            # end.record()
 
-        for i in range(args.num_ensemble):  #this is for the generation of an ensemble of 5 masks.
-            model_kwargs = {}
-            start.record()
-            sample_fn = (
-                diffusion.p_sample_loop_known if not args.use_ddim else diffusion.ddim_sample_loop_known
-            )
-            sample, x_noisy, org, cal, cal_out = sample_fn(
-                model,
-                seg.shape,
-                condition,
-                step=1000,
-                clip_denoised=args.clip_denoised,
-                model_kwargs=model_kwargs,
-            )
 
-            end.record()
+        for timestep in range(1000 - 1, 0, -int(1000 / 50)):
+            model_input = torch.cat((condition, noise), dim=1)
+            with torch.no_grad():
+                t = torch.tensor([timestep], device=device)
+                noise_prediction = model(model_input, t)
+                print(timestep)
+
+                noise = diffusion.step(noise_prediction, int(timestep), noise, return_dict=False)[0]
+
+        with torch.no_grad():
+            model_input = torch.cat((condition, noise), dim=1)
+            timestep = 0
+            t = torch.tensor([timestep], device=device)
+            noise_prediction = model(model_input, t)
+
+            sample = diffusion.step(noise_prediction, int(timestep), noise, return_dict=False)[0]
             torch.cuda.synchronize()
-            print('time for 1 sample', start.elapsed_time(end))  #time measurement for the generation of 1 sample
+            # print('time for 1 sample', start.elapsed_time(end))  #time measurement for the generation of 1 sample
 
             numpy_seg = torch.permute(seg[0].cpu().detach(), (1, 2, 0)).numpy()
             numpy_sample = torch.permute(sample[0].cpu().detach(), (1, 2, 0)).numpy()
@@ -147,7 +179,7 @@ def create_argparser():
         num_samples=1,
         batch_size=1,
         use_ddim=False,
-        model_path="./results/savedmodel003000.pt",         #path to pretrain model
+        model_path="./results/savedmodel006000.pt",         #path to pretrain model
         num_ensemble=5,      #number of samples in the ensemble
         gpu_dev="0",
         out_dir='./results/',
