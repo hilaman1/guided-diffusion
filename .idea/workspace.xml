@@ -5,8 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="6f7e7c5b-e8de-4f23-9ff6-87261a8ffa9c" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scripts/polyp_dataset.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/polyp_dataset.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/guided_diffusion/train_util.py" beforeDir="false" afterPath="$PROJECT_DIR$/guided_diffusion/train_util.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

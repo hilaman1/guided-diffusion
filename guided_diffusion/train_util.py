@@ -199,7 +199,7 @@ class TrainLoop:
             self.save()
 
     def run_step(self, batch, cond):
-        batch = th.cat((batch, cond), dim=1)
+        batch = th.cat((cond, batch), dim=1)
 
         cond_channels = cond.shape[1]
         cond = {}
