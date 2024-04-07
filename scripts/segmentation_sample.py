@@ -3,11 +3,16 @@
 import argparse
 import os
 from ssl import OP_NO_TLSv1
+
+import matplotlib.pyplot as plt
 import nibabel as nib
 # from visdom import Visdom
 # viz = Visdom(port=8850)
 import sys
 import random
+
+import torch
+
 sys.path.append(".")
 import numpy as np
 import time
@@ -62,17 +67,21 @@ def main():
         args.in_ch = 5
 
     elif args.data_name == "POLYP":
-        images_path = "C:\\Users\\Admin\\Documents\\GitHub\\diffusion\\data\\polyps\\train\\train"
-        gt_path = "C:\\Users\\Admin\\Documents\\GitHub\\diffusion\\data\\polyps\\train_gt\\train_gt"
-        images_embeddings_path = "C:\\Users\\Admin\\Documents\\GitHub\\diffusion\\data\\polyps\\train_embeddings\\train_embeddings"
-        gt_embeddings_path = "C:\\Users\\Admin\\Documents\\GitHub\\diffusion\\data\\polyps\\train_gt_embeddings\\train_gt_embeddings"
+        images_path = os.path.join(os.getcwd(), "data", "polyps", "train", "train")
+        gt_path = os.path.join(os.getcwd(), "data", "polyps", "train_gt", "train_gt")
+        images_embeddings_path = os.path.join(os.getcwd(), "data", "polyps", "train_embeddings", "train_embeddings")
+        gt_embeddings_path = os.path.join(os.getcwd(), "data", "polyps", "train_gt_embeddings", "train_gt_embeddings")
+        new_image_height = 64
+        new_image_width = 64
+        guided = False
         ds = polyp_dataset(
             images_path=images_path,
             gt_path=gt_path,
             images_embeddings_path=images_embeddings_path,
             gt_embeddings_path=gt_embeddings_path,
-            new_image_height=256,
-            new_image_width=256
+            new_image_height=new_image_height,
+            new_image_width=new_image_width,
+            guided=guided
         )
     datal = th.utils.data.DataLoader(
         ds,
@@ -85,8 +94,9 @@ def main():
     model, diffusion = create_model_and_diffusion(
         **args_to_dict(args, model_and_diffusion_defaults().keys())
     )
-    model = UNetModel(in_channels=4, out_channels=4, channels=32, n_res_blocks=3, attention_levels=[0, 1, 2],
-                      channel_multipliers=[2, 4, 6], n_heads=1, d_cond=4)
+    d_cond = 3
+    model = UNetModel(in_channels=3, out_channels=3, channels=32, n_res_blocks=3, attention_levels=[0, 1, 2],
+                      channel_multipliers=[2, 4, 6], condition_channels=3, n_heads=1, d_cond=d_cond)
     all_images = []
 
 
@@ -107,10 +117,7 @@ def main():
     if args.use_fp16:
         model.convert_to_fp16()
     model.eval()
-    for _ in range(len(data)):
-        b, m, path = next(data)  #should return an image from the dataloader "data"
-        c = th.randn_like(b[:, :4, ...])
-        img = th.cat((c, m), dim=1)     #add a noise channel$
+    for batch_idx, (gt, image, path) in enumerate(data):
         if args.data_name == 'ISIC':
             slice_ID=path[0].split("_")[-1].split('.')[0]
         elif args.data_name == 'BRATS':
@@ -131,7 +138,9 @@ def main():
             )
             sample, x_noisy, org, cal, cal_out = sample_fn(
                 model,
-                (args.batch_size, 3, args.image_size, args.image_size), img,
+                image.shape,
+                gt.shape,
+                image,
                 step = args.diffusion_steps,
                 clip_denoised=args.clip_denoised,
                 model_kwargs=model_kwargs,
@@ -151,6 +160,11 @@ def main():
                 # print('sample size is',sample.size())
                 # print('org size is',org.size())
                 # print('cal size is',cal.size())
+                if args.data_name == "POLYP":
+                    fig, axis = plt.subplots(1, 2)
+                    axis[0].imshow(torch.permute(sample[0].cpu().detach(), (1, 2, 0)))
+                    axis[1].imshow(torch.permute(gt[0].cpu().detach(), (1, 2, 0)))
+                    plt.show()
                 if args.data_name == 'ISIC':
                     # s = th.tensor(sample)[:,-1,:,:].unsqueeze(1).repeat(1, 3, 1, 1)
                     o = th.tensor(org)[:,:-1,:,:]
@@ -191,12 +205,12 @@ def create_argparser():
         num_samples=1,
         batch_size=1,
         use_ddim=False,
-        model_path="./results/emasavedmodel_0.9999_005000.pt",         #path to pretrain model
+        model_path="./results/savedmodel000000.pt",         #path to pretrain model
         num_ensemble=5,      #number of samples in the ensemble
         gpu_dev="0",
         out_dir='./results/',
         multi_gpu=None, #"0,1,2"
-        debug=False,
+        debug=True,
     )
     defaults.update(model_and_diffusion_defaults())
     parser = argparse.ArgumentParser()
