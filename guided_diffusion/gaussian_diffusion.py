@@ -272,7 +272,7 @@ class GaussianDiffusion:
         model_output = model(x, self._scale_timesteps(t), **model_kwargs)
         if isinstance(model_output, tuple):
             model_output, cal = model_output
-        x=x[:,:4,...]  #loss is only calculated on the last channel, not on the input brain MR image
+        x=x[:,-model_output.shape[1]:,...]  #loss is only calculated on the last channel, not on the input brain MR image
         if self.model_var_type in [ModelVarType.LEARNED, ModelVarType.LEARNED_RANGE]:
             assert model_output.shape == (B, C * 2, *x.shape[2:])
             model_output, model_var_values = th.split(model_output, C, dim=1)
@@ -447,7 +447,7 @@ class GaussianDiffusion:
             denoised_fn=denoised_fn,
             model_kwargs=model_kwargs,
         )
-        noise = th.randn_like(x[:, :4,...])
+        noise = th.randn_like(x[:, -out["mean"].shape[1]:,...])
         nonzero_mask = (
             (t != 0).float().view(-1, *([1] * (len(x.shape) - 1)))
         )
@@ -559,7 +559,7 @@ class GaussianDiffusion:
             print('no dpm-solver')
             i = 0
             letters = string.ascii_lowercase
-            name = ''.join(random.choice(letters) for i in range(10)) 
+            name = ''.join(random.choice(letters) for i in range(10))
             for sample in self.p_sample_loop_progressive(
                 model,
                 shape,
@@ -591,7 +591,7 @@ class GaussianDiffusion:
                 cal_out = torch.clamp(final["cal"] + 0.25 * final["sample"][:,-1,:,:].unsqueeze(1), 0, 1)
             else:
                 cal_out = torch.clamp(final["cal"] * 0.5 + 0.5 * final["sample"][:,-1,:,:].unsqueeze(1), 0, 1)
-            
+
 
         return final["sample"], x_noisy, img, final["cal"], cal_out
 
@@ -626,7 +626,7 @@ class GaussianDiffusion:
             img = th.randn(*shape, device=device)
         indices = list(range(time))[::-1]
         org_c = img.size(1)
-        org_MRI = img[:, 4:, ...]      #original brain MR image
+        org_MRI = img[:, :shape[1], ...]      #original brain MR image
         if progress:
             # Lazy import so that we don't depend on tqdm.
             from tqdm.auto import tqdm
@@ -1033,12 +1033,12 @@ class GaussianDiffusion:
             # terms["loss_diff"] = nn.BCELoss(model_output, target)
             terms["loss_diff"] = mean_flat((target - model_output) ** 2)
             # terms["loss_cal"] = mean_flat((res - cal) ** 2)
-            # terms["loss_cal"] = nn.BCELoss()(cal.type(th.float), res.type(th.float)) 
+            # terms["loss_cal"] = nn.BCELoss()(cal.type(th.float), res.type(th.float))
             # terms["mse"] = (terms["mse_diff"] + terms["mse_cal"]) / 2.
             if "vb" in terms:
                 terms["loss"] = terms["loss_diff"] + terms["vb"]
             else:
-                terms["loss"] = terms["loss_diff"] 
+                terms["loss"] = terms["loss_diff"]
 
         else:
             raise NotImplementedError(self.loss_type)

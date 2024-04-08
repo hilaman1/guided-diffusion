@@ -47,10 +47,12 @@ def main():
         ds = BRATSDataset3D(args.data_dir, transform_train, test_flag=False)
         args.in_ch = 5
     elif args.data_name == "POLYP":
-        images_path = os.path.join(os.getcwd(), "data", "polyps", "train", "train")
-        gt_path = os.path.join(os.getcwd(), "data", "polyps", "train_gt", "train_gt")
-        images_embeddings_path = os.path.join(os.getcwd(), "data", "polyps", "train_embeddings", "train_embeddings")
-        gt_embeddings_path = os.path.join(os.getcwd(), "data", "polyps", "train_gt_embeddings", "train_gt_embeddings")
+        # TODO: change the next paths to your own
+        images_path = r"D:\Hila\guided-diffusion\datasets\polyps\train\train"
+        gt_path = r"D:\Hila\guided-diffusion\datasets\polyps\train_gt\train_gt"
+        images_embeddings_path = r"D:\Hila\guided-diffusion\datasets\polyps\dataset_embeddings\train_embeddings\train_embeddings"
+        gt_embeddings_path = r"D:\Hila\guided-diffusion\datasets\polyps\dataset_embeddings\train_gt_embeddings\train_gt_embeddings"
+
         new_image_height = 64
         new_image_width = 64
         guided = False
@@ -112,8 +114,9 @@ def main():
 
 def create_argparser():
     defaults = dict(
+        # TODO: change data_dir to datasets directory
         data_name='POLYP',
-        data_dir="C:\\Users\\Admin\\Documents\\GitHub\\guided-diffusion\\datasets",
+        data_dir=r"D:\Hila\guided-diffusion\datasets",
         schedule_sampler="uniform",
         lr=1e-4,
         weight_decay=0.0,

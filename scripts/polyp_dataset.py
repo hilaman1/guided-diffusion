@@ -48,7 +48,7 @@ class polyp_dataset(Dataset):
             image_path = self.images[idx]
             gt_path = self.gt[idx]
 
-            image = plt.imread(str(os.path.join(self.images_path, image_path)))
+            image = plt.imread(fr"{str(os.path.join(self.images_path, image_path))}")
             gt = plt.imread(str(os.path.join(self.gt_path, gt_path)))
 
             image = cv2.resize(image, (self.new_image_width, self.new_image_height))
@@ -62,10 +62,10 @@ class polyp_dataset(Dataset):
 if __name__ == "__main__":
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
     print(f"Device {device}")
-    images_path = os.path.join(os.getcwd(), "data", "polyps", "train", "train")
-    images_embeddings_path = os.path.join(os.getcwd(), "data", "polyps", "train_embeddings", "train_embeddings")
-    gt_path = os.path.join(os.getcwd(), "data", "polyps", "train_gt", "train_gt")
-    gt_path_embeddings = os.path.join(os.getcwd(), "data", "polyps", "train_gt_embeddings", "train_gt_embeddings")
+    images_path = r"D:\Hila\guided-diffusion\datasets\polyps\train\train"
+    images_embeddings_path = r"D:\Hila\guided-diffusion\datasets\polyps\dataset_embeddings\train_embeddings\train_embeddings"
+    gt_path = r"D:\Hila\guided-diffusion\datasets\polyps\train_gt\train_gt"
+    gt_path_embeddings = r"D:\Hila\guided-diffusion\datasets\polyps\dataset_embeddings\train_gt_embeddings\train_gt_embeddings"
     new_image_height = 64
     new_image_width = 64
     guided = False

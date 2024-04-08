@@ -62,17 +62,22 @@ def main():
         args.in_ch = 5
 
     elif args.data_name == "POLYP":
-        images_path = "C:\\Users\\Admin\\Documents\\GitHub\\diffusion\\data\\polyps\\train\\train"
-        gt_path = "C:\\Users\\Admin\\Documents\\GitHub\\diffusion\\data\\polyps\\train_gt\\train_gt"
-        images_embeddings_path = "C:\\Users\\Admin\\Documents\\GitHub\\diffusion\\data\\polyps\\train_embeddings\\train_embeddings"
-        gt_embeddings_path = "C:\\Users\\Admin\\Documents\\GitHub\\diffusion\\data\\polyps\\train_gt_embeddings\\train_gt_embeddings"
+        # TODO: change the next paths to your own
+        images_path = r"D:\Hila\guided-diffusion\datasets\polyps\train\train"
+        gt_path = r"D:\Hila\guided-diffusion\datasets\polyps\train_gt\train_gt"
+        images_embeddings_path = r"D:\Hila\guided-diffusion\datasets\polyps\dataset_embeddings\train_embeddings\train_embeddings"
+        gt_embeddings_path = r"D:\Hila\guided-diffusion\datasets\polyps\dataset_embeddings\train_gt_embeddings\train_gt_embeddings"
+        new_image_height = 64
+        new_image_width = 64
+        guided = False
         ds = polyp_dataset(
             images_path=images_path,
             gt_path=gt_path,
             images_embeddings_path=images_embeddings_path,
             gt_embeddings_path=gt_embeddings_path,
-            new_image_height=256,
-            new_image_width=256
+            new_image_height=new_image_height,
+            new_image_width=new_image_width,
+            guided=guided
         )
     datal = th.utils.data.DataLoader(
         ds,
@@ -85,8 +90,8 @@ def main():
     model, diffusion = create_model_and_diffusion(
         **args_to_dict(args, model_and_diffusion_defaults().keys())
     )
-    model = UNetModel(in_channels=4, out_channels=4, channels=32, n_res_blocks=3, attention_levels=[0, 1, 2],
-                      channel_multipliers=[2, 4, 6], n_heads=1, d_cond=4)
+    model = UNetModel(in_channels=3, out_channels=3, channels=32, n_res_blocks=3, attention_levels=[0, 1, 2],
+                      channel_multipliers=[2, 4, 6], condition_channels=3, n_heads=1, d_cond=3)
     all_images = []
 
 
