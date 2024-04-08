@@ -272,7 +272,7 @@ class GaussianDiffusion:
         model_output = model(x, self._scale_timesteps(t), **model_kwargs)
         if isinstance(model_output, tuple):
             model_output, cal = model_output
-        x=x[:,-model_output.shape[1]:,...]  #loss is only calculated on the last channel, not on the input brain MR image
+        x=x[:,model_output.shape[1]:,...]  #loss is only calculated on the last channel, not on the input brain MR image
         if self.model_var_type in [ModelVarType.LEARNED, ModelVarType.LEARNED_RANGE]:
             assert model_output.shape == (B, C * 2, *x.shape[2:])
             model_output, model_var_values = th.split(model_output, C, dim=1)
@@ -447,7 +447,7 @@ class GaussianDiffusion:
             denoised_fn=denoised_fn,
             model_kwargs=model_kwargs,
         )
-        noise = th.randn_like(x[:, -out["mean"].shape[1]:,...])
+        noise = th.randn_like(out["mean"])
         nonzero_mask = (
             (t != 0).float().view(-1, *([1] * (len(x.shape) - 1)))
         )
@@ -505,7 +505,8 @@ class GaussianDiffusion:
     def p_sample_loop_known(
         self,
         model,
-        shape,
+        condition_shape,
+        gt_shape,
         img,
         step = 1000,
         org=None,
@@ -521,11 +522,10 @@ class GaussianDiffusion:
     ):
         if device is None:
             device = next(model.parameters()).device
-        assert isinstance(shape, (tuple, list))
+        assert isinstance(gt_shape, (tuple, list))
         img = img.to(device)
-        noise = th.randn_like(img[:, :1, ...]).to(device)
-        x_noisy = torch.cat((img[:, :-1,  ...], noise), dim=1)  #add noise as the last channel
-        img=img.to(device)
+        noise = th.randn(gt_shape).to(device)
+        x_noisy = torch.cat((img, noise), dim=1)  #add noise as the last channel
 
         if self.dpm_solver:
             final = {}
@@ -562,7 +562,7 @@ class GaussianDiffusion:
             name = ''.join(random.choice(letters) for i in range(10))
             for sample in self.p_sample_loop_progressive(
                 model,
-                shape,
+                condition_shape,
                 time = step,
                 noise=x_noisy,
                 clip_denoised=clip_denoised,
@@ -627,6 +627,7 @@ class GaussianDiffusion:
         indices = list(range(time))[::-1]
         org_c = img.size(1)
         org_MRI = img[:, :shape[1], ...]      #original brain MR image
+        img = img[:, shape[1]:, :, :]
         if progress:
             # Lazy import so that we don't depend on tqdm.
             from tqdm.auto import tqdm

@@ -48,14 +48,14 @@ class polyp_dataset(Dataset):
             image_path = self.images[idx]
             gt_path = self.gt[idx]
 
-            image = plt.imread(fr"{str(os.path.join(self.images_path, image_path))}")
-            gt = plt.imread(str(os.path.join(self.gt_path, gt_path)))
+            image = cv2.imread(fr"{str(os.path.join(self.images_path, image_path))}")
+            gt = cv2.imread(str(os.path.join(self.gt_path, gt_path)))
 
             image = cv2.resize(image, (self.new_image_width, self.new_image_height))
             gt = cv2.resize(gt, (self.new_image_width, self.new_image_height))
 
-            image = torch.permute(torch.from_numpy(np.copy(image)), (2, 0, 1)).float()
-            gt = torch.permute(torch.from_numpy(np.copy(gt)), (2, 0, 1)).float()
+            # image = torch.permute(torch.from_numpy(np.copy(image)), (2, 0, 1)).float()
+            # gt = torch.permute(torch.from_numpy(np.copy(gt)), (2, 0, 1)).float()
             return gt, image, ""
 
 
@@ -81,6 +81,15 @@ if __name__ == "__main__":
     )
 
     dataloader = DataLoader(dataset, batch_size=1, shuffle=False)
+    # plot the original image, the ground truth
+    fig, axis = plt.subplots(1,2)
+    for image, gt, _ in dataloader:
+        image = torch.squeeze(image, dim=0)
+        gt = torch.squeeze(gt, dim=0)
+        axis[0].imshow(cv2.cvtColor(image.numpy(), cv2.COLOR_BGR2RGB))
+        axis[1].imshow(cv2.cvtColor(gt.numpy(), cv2.COLOR_BGR2RGB))
+        break
+    plt.show()
 
     vae = AutoencoderKL.from_pretrained(f"stabilityai/sd-vae-ft-ema").to(device)
 

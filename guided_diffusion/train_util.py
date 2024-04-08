@@ -12,6 +12,7 @@ from . import dist_util, logger
 from .fp16_util import MixedPrecisionTrainer
 from .nn import update_ema
 from .resample import LossAwareSampler, UniformSampler
+
 # from visdom import Visdom
 # viz = Visdom(port=8850)
 # loss_window = viz.line( Y=th.zeros((1)).cpu(), X=th.zeros((1)).cpu(), opts=dict(xlabel='epoch', ylabel='Loss', title='loss'))
@@ -24,36 +25,38 @@ from .resample import LossAwareSampler, UniformSampler
 # 20-21 within the first ~1K steps of training.
 INITIAL_LOG_LOSS_SCALE = 20.0
 
+
 def visualize(img):
     _min = img.min()
     _max = img.max()
-    normalized_img = (img - _min)/ (_max - _min)
+    normalized_img = (img - _min) / (_max - _min)
     return normalized_img
+
 
 class TrainLoop:
     def __init__(
-        self,
-        *,
-        model,
-        classifier,
-        diffusion,
-        data,
-        dataloader,
-        batch_size,
-        microbatch,
-        lr,
-        ema_rate,
-        log_interval,
-        save_interval,
-        resume_checkpoint,
-        use_fp16=False,
-        fp16_scale_growth=1e-3,
-        schedule_sampler=None,
-        weight_decay=0.0,
-        lr_anneal_steps=0,
+            self,
+            *,
+            model,
+            classifier,
+            diffusion,
+            data,
+            dataloader,
+            batch_size,
+            microbatch,
+            lr,
+            ema_rate,
+            log_interval,
+            save_interval,
+            resume_checkpoint,
+            use_fp16=False,
+            fp16_scale_growth=1e-3,
+            schedule_sampler=None,
+            weight_decay=0.0,
+            lr_anneal_steps=0,
     ):
         self.model = model
-        self.dataloader=dataloader
+        self.dataloader = dataloader
         self.classifier = classifier
         self.diffusion = diffusion
         self.data = data
@@ -170,22 +173,22 @@ class TrainLoop:
         i = 0
         data_iter = iter(self.dataloader)
         while (
-            not self.lr_anneal_steps
-            or self.step + self.resume_step < self.lr_anneal_steps
+                not self.lr_anneal_steps
+                or self.step + self.resume_step < self.lr_anneal_steps
         ):
 
             try:
-                    batch, cond, name = next(data_iter)
+                batch, cond, name = next(data_iter)
             except StopIteration:
-                    # StopIteration is thrown if dataset ends
-                    # reinitialize data loader
-                    data_iter = iter(self.dataloader)
-                    batch, cond, name = next(data_iter)
+                # StopIteration is thrown if dataset ends
+                # reinitialize data loader
+                data_iter = iter(self.dataloader)
+                batch, cond, name = next(data_iter)
 
             self.run_step(batch, cond)
 
             i += 1
-          
+
             if self.step % self.log_interval == 0:
                 logger.dumpkvs()
             if self.step % self.save_interval == 0:
@@ -247,7 +250,7 @@ class TrainLoop:
             losses = losses1[0]
             sample = losses1[1]
 
-            loss = (losses["loss"] * weights).mean()# + losses['loss_cal'] * 10).mean()
+            loss = (losses["loss"] * weights).mean()  # + losses['loss_cal'] * 10).mean()
 
             log_loss_dict(
                 self.diffusion, t, {k: v * weights for k, v in losses.items()}
@@ -280,9 +283,9 @@ class TrainLoop:
             if dist.get_rank() == 0:
                 logger.log(f"saving model {rate}...")
                 if not rate:
-                    filename = f"savedmodel{(self.step+self.resume_step):06d}.pt"
+                    filename = f"savedmodel{(self.step + self.resume_step):06d}.pt"
                 else:
-                    filename = f"emasavedmodel_{rate}_{(self.step+self.resume_step):06d}.pt"
+                    filename = f"emasavedmodel_{rate}_{(self.step + self.resume_step):06d}.pt"
                 with bf.BlobFile(bf.join(get_blob_logdir(), filename), "wb") as f:
                     th.save(state_dict, f)
 
@@ -292,8 +295,8 @@ class TrainLoop:
 
         if dist.get_rank() == 0:
             with bf.BlobFile(
-                bf.join(get_blob_logdir(), f"optsavedmodel{(self.step+self.resume_step):06d}.pt"),
-                "wb",
+                    bf.join(get_blob_logdir(), f"optsavedmodel{(self.step + self.resume_step):06d}.pt"),
+                    "wb",
             ) as f:
                 th.save(self.opt.state_dict(), f)
 

@@ -3,11 +3,16 @@
 import argparse
 import os
 from ssl import OP_NO_TLSv1
+
+import matplotlib.pyplot as plt
 import nibabel as nib
 # from visdom import Visdom
 # viz = Visdom(port=8850)
 import sys
 import random
+
+import torch
+
 sys.path.append(".")
 import numpy as np
 import time
@@ -62,7 +67,6 @@ def main():
         args.in_ch = 5
 
     elif args.data_name == "POLYP":
-        # TODO: change the next paths to your own
         images_path = r"D:\Hila\guided-diffusion\datasets\polyps\train\train"
         gt_path = r"D:\Hila\guided-diffusion\datasets\polyps\train_gt\train_gt"
         images_embeddings_path = r"D:\Hila\guided-diffusion\datasets\polyps\dataset_embeddings\train_embeddings\train_embeddings"
@@ -90,8 +94,9 @@ def main():
     model, diffusion = create_model_and_diffusion(
         **args_to_dict(args, model_and_diffusion_defaults().keys())
     )
+    d_cond = 3
     model = UNetModel(in_channels=3, out_channels=3, channels=32, n_res_blocks=3, attention_levels=[0, 1, 2],
-                      channel_multipliers=[2, 4, 6], condition_channels=3, n_heads=1, d_cond=3)
+                      channel_multipliers=[2, 4, 6], condition_channels=3, n_heads=1, d_cond=d_cond)
     all_images = []
 
 
@@ -112,10 +117,8 @@ def main():
     if args.use_fp16:
         model.convert_to_fp16()
     model.eval()
-    for _ in range(len(data)):
-        b, m, path = next(data)  #should return an image from the dataloader "data"
-        c = th.randn_like(b[:, :4, ...])
-        img = th.cat((c, m), dim=1)     #add a noise channel$
+
+    for batch_idx, (gt, image, path) in enumerate(data):
         if args.data_name == 'ISIC':
             slice_ID=path[0].split("_")[-1].split('.')[0]
         elif args.data_name == 'BRATS':
@@ -136,7 +139,9 @@ def main():
             )
             sample, x_noisy, org, cal, cal_out = sample_fn(
                 model,
-                (args.batch_size, 3, args.image_size, args.image_size), img,
+                image.shape,
+                gt.shape,
+                image,
                 step = args.diffusion_steps,
                 clip_denoised=args.clip_denoised,
                 model_kwargs=model_kwargs,
@@ -152,41 +157,30 @@ def main():
             else:
                 enslist.append(co)
 
-            if args.debug:
-                # print('sample size is',sample.size())
-                # print('org size is',org.size())
-                # print('cal size is',cal.size())
-                if args.data_name == 'ISIC':
-                    # s = th.tensor(sample)[:,-1,:,:].unsqueeze(1).repeat(1, 3, 1, 1)
-                    o = th.tensor(org)[:,:-1,:,:]
-                    c = th.tensor(cal).repeat(1, 3, 1, 1)
-                    # co = co.repeat(1, 3, 1, 1)
+        if args.debug:
+            # print('sample size is',sample.size())
+            # print('org size is',org.size())
+            # print('cal size is',cal.size())
+            if args.data_name == "POLYP":
+#                 plot the original image, the ground truth and the generated masks from samples_lst
+                fig, axis = plt.subplots(1, 2 + args.num_ensemble)
+                axis[0].imshow(torch.permute(image[0].cpu().detach(), (1, 2, 0)))
+                axis[0].set_title('Original Image')
+                axis[1].imshow(torch.permute(gt[0].cpu().detach(), (1, 2, 0)))
+                axis[1].set_title('Ground Truth')
+                for i in range(args.num_ensemble):
+                    axis[2 + i].imshow(enslist[i][0].cpu().detach())
+                    axis[2 + i].set_title(f'Mask {i + 1}')
+                plt.suptitle(f'Results using {args.model_path}')
+                plt.show()
+                plt.close()
 
-                    s = sample[:,-1,:,:]
-                    b,h,w = s.size()
-                    ss = s.clone()
-                    ss = ss.view(s.size(0), -1)
-                    ss -= ss.min(1, keepdim=True)[0]
-                    ss /= ss.max(1, keepdim=True)[0]
-                    ss = ss.view(b, h, w)
-                    ss = ss.unsqueeze(1).repeat(1, 3, 1, 1)
 
-                    tup = (ss,o,c)
-                elif args.data_name == 'BRATS':
-                    s = th.tensor(sample)[:,-1,:,:].unsqueeze(1)
-                    m = th.tensor(m.to(device = 'cuda:0'))[:,0,:,:].unsqueeze(1)
-                    o1 = th.tensor(org)[:,0,:,:].unsqueeze(1)
-                    o2 = th.tensor(org)[:,1,:,:].unsqueeze(1)
-                    o3 = th.tensor(org)[:,2,:,:].unsqueeze(1)
-                    o4 = th.tensor(org)[:,3,:,:].unsqueeze(1)
-                    c = th.tensor(cal)
 
-                    tup = (o1/o1.max(),o2/o2.max(),o3/o3.max(),o4/o4.max(),m,s,c,co)
 
-                compose = th.cat(tup,0)
-                vutils.save_image(compose, fp = os.path.join(args.out_dir, str(slice_ID)+'_output'+str(i)+".jpg"), nrow = 1, padding = 10)
-        ensres = staple(th.stack(enslist,dim=0)).squeeze(0)
-        vutils.save_image(ensres, fp = os.path.join(args.out_dir, str(slice_ID)+'_output_ens'+".jpg"), nrow = 1, padding = 10)
+
+
+
 
 def create_argparser():
     defaults = dict(
@@ -196,12 +190,12 @@ def create_argparser():
         num_samples=1,
         batch_size=1,
         use_ddim=False,
-        model_path="./results/emasavedmodel_0.9999_005000.pt",         #path to pretrain model
+        model_path="./results/savedmodel015000.pt",         #path to pretrain model
         num_ensemble=5,      #number of samples in the ensemble
         gpu_dev="0",
         out_dir='./results/',
         multi_gpu=None, #"0,1,2"
-        debug=False,
+        debug=True,
     )
     defaults.update(model_and_diffusion_defaults())
     parser = argparse.ArgumentParser()
