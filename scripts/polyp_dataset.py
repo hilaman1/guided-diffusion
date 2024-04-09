@@ -6,6 +6,8 @@ import os
 import matplotlib.pyplot as plt
 from diffusers.models import AutoencoderKL
 import cv2
+from unet import UNetModel
+
 
 
 class polyp_dataset(Dataset):
@@ -48,14 +50,22 @@ class polyp_dataset(Dataset):
             image_path = self.images[idx]
             gt_path = self.gt[idx]
 
-            image = cv2.imread(fr"{str(os.path.join(self.images_path, image_path))}")
-            gt = cv2.imread(str(os.path.join(self.gt_path, gt_path)))
+            image_path = self.images[idx]
+            gt_path = self.gt[idx]
+
+            image = plt.imread(str(os.path.join(self.images_path, image_path)))
+            gt = plt.imread(str(os.path.join(self.gt_path, gt_path)))
 
             image = cv2.resize(image, (self.new_image_width, self.new_image_height))
             gt = cv2.resize(gt, (self.new_image_width, self.new_image_height))
 
-            # image = torch.permute(torch.from_numpy(np.copy(image)), (2, 0, 1)).float()
-            # gt = torch.permute(torch.from_numpy(np.copy(gt)), (2, 0, 1)).float()
+            image = torch.permute(torch.from_numpy(np.copy(image)), (2, 0, 1)).float()
+            gt = torch.permute(torch.from_numpy(np.copy(gt)), (2, 0, 1)).float()
+
+            # # devide by 255
+            image = image.div_(255)
+            gt = gt.div_(255)
+
             return gt, image, ""
 
 
@@ -85,9 +95,14 @@ if __name__ == "__main__":
     fig, axis = plt.subplots(1,2)
     for image, gt, _ in dataloader:
         image = torch.squeeze(image, dim=0)
+        image = torch.permute(torch.from_numpy(np.copy(image)), (1, 2, 0))
         gt = torch.squeeze(gt, dim=0)
-        axis[0].imshow(cv2.cvtColor(image.numpy(), cv2.COLOR_BGR2RGB))
-        axis[1].imshow(cv2.cvtColor(gt.numpy(), cv2.COLOR_BGR2RGB))
+        gt = torch.permute(torch.from_numpy(np.copy(gt)), (1, 2, 0))
+        # make image values between 0 and 255
+        image = image.mul_(255).byte()
+        gt = gt.mul_(255).byte()
+        axis[0].imshow(image)
+        axis[1].imshow(gt)
         break
     plt.show()
 

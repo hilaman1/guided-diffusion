@@ -986,7 +986,8 @@ class GaussianDiffusion:
         if model_kwargs is None:
             model_kwargs = {}
         if noise is None:
-            noise = th.randn_like(x_start[:, -batch_channels:, ...])
+            # noise = th.randn_like(x_start[:, -batch_channels:, ...], )
+            noise = th.randn(x_start[:, -batch_channels:, ...].shape, device=x_start.device)
 
         mask = x_start[:, -batch_channels:, ...]
         res = torch.where(mask > 0, 1, 0)   #merge all tumor classes into one to get a binary segmentation mask

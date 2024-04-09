@@ -158,19 +158,20 @@ def main():
                 enslist.append(co)
 
         if args.debug:
-            # print('sample size is',sample.size())
-            # print('org size is',org.size())
-            # print('cal size is',cal.size())
             if args.data_name == "POLYP":
 #                 plot the original image, the ground truth and the generated masks from samples_lst
-                fig, axis = plt.subplots(1, 2 + args.num_ensemble)
-                axis[0].imshow(torch.permute(image[0].cpu().detach(), (1, 2, 0)))
+                fig, axis = plt.subplots(1, 2 + args.num_ensemble, figsize=(15, 15))
+                axis[0].imshow(torch.permute(image[0].cpu().detach().mul_(255).byte(), (1, 2, 0)))
                 axis[0].set_title('Original Image')
-                axis[1].imshow(torch.permute(gt[0].cpu().detach(), (1, 2, 0)))
+                axis[1].imshow(torch.permute(gt[0].cpu().detach().mul_(255).byte(), (1, 2, 0)))
                 axis[1].set_title('Ground Truth')
                 for i in range(args.num_ensemble):
-                    axis[2 + i].imshow(enslist[i][0].cpu().detach())
+                    axis[2 + i].imshow(enslist[i][0].cpu().detach().mul_(255).byte())
                     axis[2 + i].set_title(f'Mask {i + 1}')
+                # make the distance between the subplots larger
+                plt.subplots_adjust(wspace=0.8)
+                # make each subplot larger
+                plt.tight_layout()
                 plt.suptitle(f'Results using {args.model_path}')
                 plt.show()
                 plt.close()
@@ -190,7 +191,7 @@ def create_argparser():
         num_samples=1,
         batch_size=1,
         use_ddim=False,
-        model_path="./results/savedmodel015000.pt",         #path to pretrain model
+        model_path="./results/savedmodel042000.pt",         #path to pretrain model
         num_ensemble=5,      #number of samples in the ensemble
         gpu_dev="0",
         out_dir='./results/',
