@@ -7,6 +7,11 @@ import matplotlib.pyplot as plt
 from diffusers.models import AutoencoderKL
 import cv2
 from unet import UNetModel
+import torchvision.transforms as transforms
+import numpy as np
+import cv2 as cv
+from matplotlib import pyplot as plt
+
 
 
 
@@ -59,12 +64,42 @@ class polyp_dataset(Dataset):
             image = cv2.resize(image, (self.new_image_width, self.new_image_height))
             gt = cv2.resize(gt, (self.new_image_width, self.new_image_height))
 
+            # # find edges in the image
+            # edges = cv.Canny(image, 100, 200)
+            # # find contours in the image
+            # contours, hierarchy = cv.findContours(edges, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
+            # plt.figure()
+            # plt.imshow(edges, cmap='gray')
+            # # plot the contours
+            # plt.figure()
+            # plt.imshow(cv.drawContours(image, contours, -1, (0, 255, 0), 3))
+            # plt.show()
+
+
             image = torch.permute(torch.from_numpy(np.copy(image)), (2, 0, 1)).float()
             gt = torch.permute(torch.from_numpy(np.copy(gt)), (2, 0, 1)).float()
 
-            # # devide by 255
+            # normalize the image and gt by dividing by 255
+            # (smaller numerical values allow faster computation and prevent gradient explosion).
+            # source:
+            # https://kiansoon.medium.com/semantic-segmentation-is-the-task-of-partitioning-an-image-into-multiple-segments-based-on-the-356a5582370e
             image = image.div_(255)
             gt = gt.div_(255)
+            # make the gt a binary image with one channel
+            gt = torch.where(gt > 0.5, 1, 0)
+            # calculate the sum of each channel in the gt
+            sum_lst = []
+            for channel in range(gt.shape[0]):
+                channel_sum = torch.sum(gt[channel])
+                sum_lst.append(channel_sum)
+            # get the channel with the maximum sum
+            max_sum = max(sum_lst)
+            max_sum_idx = sum_lst.index(max_sum)
+            gt = gt[max_sum_idx]
+            # add a channel to the image
+            gt = torch.unsqueeze(gt, dim=0)
+
+
 
             return gt, image, ""
 
@@ -92,41 +127,21 @@ if __name__ == "__main__":
 
     dataloader = DataLoader(dataset, batch_size=1, shuffle=False)
     # plot the original image, the ground truth
-    fig, axis = plt.subplots(1,2)
-    for image, gt, _ in dataloader:
-        image = torch.squeeze(image, dim=0)
-        image = torch.permute(torch.from_numpy(np.copy(image)), (1, 2, 0))
-        gt = torch.squeeze(gt, dim=0)
-        gt = torch.permute(torch.from_numpy(np.copy(gt)), (1, 2, 0))
-        # make image values between 0 and 255
-        image = image.mul_(255).byte()
-        gt = gt.mul_(255).byte()
-        axis[0].imshow(image)
-        axis[1].imshow(gt)
-        break
-    plt.show()
+    for gt, image, _ in dataloader:
+        fig, axis = plt.subplots(1, 2)
+        gt = gt[0]
+        image = image[0]
+        axis[0].imshow(gt.permute(1, 2, 0), cmap='Greys', interpolation='nearest')
+        axis[1].imshow(image.permute(1, 2, 0))
+        plt.show()
+        plt.close()
 
-    vae = AutoencoderKL.from_pretrained(f"stabilityai/sd-vae-ft-ema").to(device)
 
-    fig, axis = plt.subplots(4, 3)
-    i = 0
-    for image, image_embeddings, gt, gt_embeddings in dataloader:
-        image = torch.squeeze(image, dim=0)
-        gt = torch.squeeze(gt, dim=0)
-        if i == 3:
-            break
 
-        with torch.no_grad():
-            decoded_image = vae.decode(image_embeddings.to(device)).sample
-            decoded_gt = vae.decode(gt_embeddings.to(device)).sample
 
-        decoded_image = decoded_image.cpu().detach()
-        decoded_gt = decoded_gt.cpu().detach()
 
-        axis[0, i].imshow(image)
-        axis[1, i].imshow(gt)
-        axis[2, i].imshow(torch.permute(torch.squeeze(decoded_image, dim=0), (1, 2, 0)))
-        axis[3, i].imshow(torch.permute(torch.squeeze(decoded_gt, dim=0), (1, 2, 0)))
-        i += 1
 
-    plt.show()
+
+
+
+

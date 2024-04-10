@@ -272,7 +272,8 @@ class GaussianDiffusion:
         model_output = model(x, self._scale_timesteps(t), **model_kwargs)
         if isinstance(model_output, tuple):
             model_output, cal = model_output
-        x=x[:,model_output.shape[1]:,...]  #loss is only calculated on the last channel, not on the input brain MR image
+        # loss is only calculated on the last channel
+        x=x[:, -1, :, :].unsqueeze(1)
         if self.model_var_type in [ModelVarType.LEARNED, ModelVarType.LEARNED_RANGE]:
             assert model_output.shape == (B, C * 2, *x.shape[2:])
             model_output, model_var_values = th.split(model_output, C, dim=1)
@@ -343,7 +344,7 @@ class GaussianDiffusion:
 
 
     def _predict_xstart_from_eps(self, x_t, t, eps):
-        assert x_t.shape == eps.shape
+        # assert x_t.shape == eps.shape
         return (
             _extract_into_tensor(self.sqrt_recip_alphas_cumprod, t, x_t.shape) * x_t
             - _extract_into_tensor(self.sqrt_recipm1_alphas_cumprod, t, x_t.shape) * eps
@@ -592,7 +593,6 @@ class GaussianDiffusion:
             else:
                 cal_out = torch.clamp(final["cal"] * 0.5 + 0.5 * final["sample"][:,-1,:,:].unsqueeze(1), 0, 1)
 
-
         return final["sample"], x_noisy, img, final["cal"], cal_out
 
     def p_sample_loop_progressive(
@@ -626,8 +626,8 @@ class GaussianDiffusion:
             img = th.randn(*shape, device=device)
         indices = list(range(time))[::-1]
         org_c = img.size(1)
-        org_MRI = img[:, :shape[1], ...]      #original brain MR image
-        img = img[:, shape[1]:, :, :]
+        org_polyp_img = img[:, :shape[1], ...]      #original polyp image
+        img = img[:, shape[1]:, ...]
         if progress:
             # Lazy import so that we don't depend on tqdm.
             from tqdm.auto import tqdm
@@ -644,7 +644,7 @@ class GaussianDiffusion:
                 with th.no_grad():
                     # print('img bef size',img.size())
                     if img.size(1) != org_c:
-                        img = torch.cat((org_MRI,img), dim=1)       #in every step, make sure to concatenate the original image to the sampled segmentation mask
+                        img = torch.cat((org_polyp_img, img), dim=1)       #in every step, make sure to concatenate the original image to the sampled segmentation mask
 
                     out = self.p_sample(
                         model,
@@ -990,9 +990,9 @@ class GaussianDiffusion:
             noise = th.randn(x_start[:, -batch_channels:, ...].shape, device=x_start.device)
 
         mask = x_start[:, -batch_channels:, ...]
-        res = torch.where(mask > 0, 1, 0)   #merge all tumor classes into one to get a binary segmentation mask
+        res = mask   #merge all into one to get a binary segmentation mask
 
-        res_t = self.q_sample(res, t, noise=noise)     #add noise to the segmentation channel
+        res_t = self.q_sample(mask, t, noise=noise)     #add noise to the segmentation channel
         x_t = x_start.float()
         x_t[:, -batch_channels:, ...] = res_t.float()
         terms = {}

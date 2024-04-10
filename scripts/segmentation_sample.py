@@ -12,6 +12,8 @@ import sys
 import random
 
 import torch
+import random
+from torch.utils.data import DataLoader, random_split
 
 sys.path.append(".")
 import numpy as np
@@ -35,7 +37,7 @@ import torchvision.transforms as transforms
 from unet import UNetModel
 from torchsummary import summary
 from polyp_dataset import polyp_dataset
-seed=10
+seed=42
 th.manual_seed(seed)
 th.cuda.manual_seed_all(seed)
 np.random.seed(seed)
@@ -87,6 +89,16 @@ def main():
         ds,
         batch_size=args.batch_size,
         shuffle=True)
+
+
+    train_ratio = 0.8
+    # Calculate the number of samples for each set
+    num_train = int(len(datal.dataset) * train_ratio)
+    num_valid = len(datal.dataset) - num_train
+
+    # Split the dataset into train and validation sets
+    train_set, valid_set = random_split(datal.dataset, [num_train, num_valid])
+    datal = th.utils.data.DataLoader(valid_set, batch_size=1, shuffle=True)
     data = iter(datal)
 
     logger.log("creating model and diffusion...")
@@ -95,7 +107,7 @@ def main():
         **args_to_dict(args, model_and_diffusion_defaults().keys())
     )
     d_cond = 3
-    model = UNetModel(in_channels=3, out_channels=3, channels=32, n_res_blocks=3, attention_levels=[0, 1, 2],
+    model = UNetModel(in_channels=1, out_channels=1, channels=32, n_res_blocks=3, attention_levels=[0, 1, 2],
                       channel_multipliers=[2, 4, 6], condition_channels=3, n_heads=1, d_cond=d_cond)
     all_images = []
 
@@ -147,6 +159,9 @@ def main():
                 model_kwargs=model_kwargs,
             )
 
+            # make sample a binary image
+            sample = torch.where(sample > 0.5, 1, 0)
+
             end.record()
             th.cuda.synchronize()
             print('time for 1 sample', start.elapsed_time(end))  #time measurement for the generation of 1 sample
@@ -159,14 +174,15 @@ def main():
 
         if args.debug:
             if args.data_name == "POLYP":
-#                 plot the original image, the ground truth and the generated masks from samples_lst
+                #   plot the original image, the ground truth and the generated masks from samples_lst
                 fig, axis = plt.subplots(1, 2 + args.num_ensemble, figsize=(15, 15))
                 axis[0].imshow(torch.permute(image[0].cpu().detach().mul_(255).byte(), (1, 2, 0)))
                 axis[0].set_title('Original Image')
-                axis[1].imshow(torch.permute(gt[0].cpu().detach().mul_(255).byte(), (1, 2, 0)))
+                axis[1].imshow(gt[0].permute(1, 2, 0).cpu().detach(), cmap='Greys', interpolation='nearest')
                 axis[1].set_title('Ground Truth')
                 for i in range(args.num_ensemble):
-                    axis[2 + i].imshow(enslist[i][0].cpu().detach().mul_(255).byte())
+                    axis[2 + i].imshow(enslist[i][0].cpu().detach(), cmap='Greys',
+                                       interpolation='nearest')
                     axis[2 + i].set_title(f'Mask {i + 1}')
                 # make the distance between the subplots larger
                 plt.subplots_adjust(wspace=0.8)
@@ -191,8 +207,8 @@ def create_argparser():
         num_samples=1,
         batch_size=1,
         use_ddim=False,
-        model_path="./results/savedmodel042000.pt",         #path to pretrain model
-        num_ensemble=5,      #number of samples in the ensemble
+        model_path="./results/savedmodel002000.pt",         #path to pretrain model
+        num_ensemble=1,      #number of samples in the ensemble
         gpu_dev="0",
         out_dir='./results/',
         multi_gpu=None, #"0,1,2"

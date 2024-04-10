@@ -14,16 +14,23 @@ from guided_diffusion.script_util import (
     args_to_dict,
     add_dict_to_argparser,
 )
-import torch
+import torch as th
+import numpy as np
+import random
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from guided_diffusion.train_util import TrainLoop
 from visdom import Visdom
 viz = Visdom(port=8850)
 import torchvision.transforms as transforms
-
 from unet import UNetModel
 from polyp_dataset import polyp_dataset
+
+seed=42
+th.manual_seed(seed)
+th.cuda.manual_seed_all(seed)
+np.random.seed(seed)
+random.seed(seed)
 
 
 def main():
@@ -53,8 +60,8 @@ def main():
         images_embeddings_path = r"D:\Hila\guided-diffusion\datasets\polyps\dataset_embeddings\train_embeddings\train_embeddings"
         gt_embeddings_path = r"D:\Hila\guided-diffusion\datasets\polyps\dataset_embeddings\train_gt_embeddings\train_gt_embeddings"
 
-        new_image_height = 64
-        new_image_width = 64
+        new_image_height = 80
+        new_image_width = 80
         guided = False
         ds = polyp_dataset(
             images_path=images_path,
@@ -73,6 +80,8 @@ def main():
         args.in_ch = 4
         
     dataloader = DataLoader(ds, batch_size=args.batch_size, shuffle=True)
+
+    # add augmentation to the dataloader
     data = iter(dataloader)
 
     logger.log("creating model and diffusion...")
@@ -80,12 +89,13 @@ def main():
     model, diffusion = create_model_and_diffusion(
         **args_to_dict(args, model_and_diffusion_defaults().keys())
     )
-    model = UNetModel(in_channels=3, out_channels=3, channels=32, n_res_blocks=3, attention_levels=[0, 1, 2],
+
+    model = UNetModel(in_channels=1, out_channels=1, channels=32, n_res_blocks=3, attention_levels=[0, 1, 2],
                       channel_multipliers=[2, 4, 6], condition_channels=3, n_heads=1, d_cond=3)
 
     if args.multi_gpu:
         model = nn.DataParallel(model, device_ids=[int(id) for id in args.multi_gpu.split(',')])
-        model.to(device=torch.device('cuda', int(args.gpu_dev)))
+        model.to(device=th.device('cuda', int(args.gpu_dev)))
     else:
         model.to(dist_util.dev())
     schedule_sampler = create_named_schedule_sampler(args.schedule_sampler, diffusion,  maxt=args.diffusion_steps)

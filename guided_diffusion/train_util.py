@@ -1,7 +1,7 @@
 import copy
 import functools
 import os
-
+import numpy as np
 import blobfile as bf
 import torch as th
 import torch.distributed as dist
@@ -12,6 +12,16 @@ from . import dist_util, logger
 from .fp16_util import MixedPrecisionTrainer
 from .nn import update_ema
 from .resample import LossAwareSampler, UniformSampler
+import torchvision.transforms.functional as TF
+import random
+from torch.utils.data import DataLoader, random_split
+
+seed=42
+th.manual_seed(seed)
+th.cuda.manual_seed_all(seed)
+np.random.seed(seed)
+random.seed(seed)
+
 
 # from visdom import Visdom
 # viz = Visdom(port=8850)
@@ -170,8 +180,17 @@ class TrainLoop:
             self.opt.load_state_dict(state_dict)
 
     def run_loop(self):
+        train_ratio = 0.8
+        # Calculate the number of samples for each set
+        num_train = int(len(self.dataloader.dataset) * train_ratio)
+        num_valid = len(self.dataloader.dataset) - num_train
+
+        # Split the dataset into train and validation sets
+        train_set, valid_set = random_split(self.dataloader.dataset, [num_train, num_valid])
+        train_loader = DataLoader(train_set, batch_size=1, shuffle=True)
+
         i = 0
-        data_iter = iter(self.dataloader)
+        data_iter = iter(train_loader)
         while (
                 not self.lr_anneal_steps
                 or self.step + self.resume_step < self.lr_anneal_steps
@@ -182,8 +201,47 @@ class TrainLoop:
             except StopIteration:
                 # StopIteration is thrown if dataset ends
                 # reinitialize data loader
-                data_iter = iter(self.dataloader)
+                data_iter = iter(train_loader)
                 batch, cond, name = next(data_iter)
+
+                original_batch = batch.clone()
+                original_cond = cond.clone()
+
+                # Add augmentations of angle
+                angle = random.randint(0, 360)
+                augmented_batch = TF.rotate(original_batch, angle)
+                augmented_cond = TF.rotate(original_cond, angle)
+
+                # Concatenate original and augmented data
+                batch = th.cat((batch, augmented_batch), dim=0)
+                cond = th.cat((cond, augmented_cond), dim=0)
+
+                # TODO: fix the error in TF.affine
+                # Add augmentations of Image Shifting
+                shift = random.randint(-10, 10)
+                augmented_batch = TF.affine(original_batch, angle=0, translate=[shift, 0], scale=1, shear=0)
+                augmented_cond = TF.affine(original_cond, angle=0, translate=[shift, 0], scale=1, shear=0)
+
+                # Concatenate original and augmented data
+                batch = th.cat((batch, augmented_batch), dim=0)
+                cond = th.cat((cond, augmented_cond), dim=0)
+
+                # Add augmentations of Image Flipping
+                augmented_batch = TF.hflip(original_batch)
+                augmented_cond = TF.hflip(original_cond)
+
+                # Concatenate original and augmented data
+                batch = th.cat((batch, augmented_batch), dim=0)
+                cond = th.cat((cond, augmented_cond), dim=0)
+
+                # Add augmentations of Image Blurring
+                augmented_batch = TF.gaussian_blur(original_batch, 5)
+                augmented_cond = TF.gaussian_blur(original_cond, 5)
+
+                # Concatenate original and augmented data
+                batch = th.cat((batch, augmented_batch), dim=0)
+                cond = th.cat((cond, augmented_cond), dim=0)
+
 
             self.run_step(batch, cond)
 
