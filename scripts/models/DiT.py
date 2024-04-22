@@ -118,13 +118,16 @@ class DiTBlock(nn.Module):
         )
         self.cross_attention = nn.MultiheadAttention(hidden_size, num_heads, add_bias_kv=True, batch_first=True)
 
-    def forward(self, x, y, c):
-        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = self.adaLN_modulation(c).chunk(6, dim=1)
-        x = x + gate_msa.unsqueeze(1) * self.attn(modulate(self.norm1(x), shift_msa, scale_msa))
-        normed_x = self.norm3(x)
-        normed_y = self.norm4(y)
-        x = x + self.cross_attention(normed_x, normed_y, y)[0]
-        x = x + gate_mlp.unsqueeze(1) * self.mlp(modulate(self.norm2(x), shift_mlp, scale_mlp))
+    def forward(self, x, c):
+        # shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = self.adaLN_modulation(c).chunk(6, dim=1)
+        # x = x + gate_msa.unsqueeze(1) * self.attn(modulate(self.norm1(x), shift_msa, scale_msa))
+        # normed_x = self.norm3(x)
+        # normed_y = self.norm4(y)
+        # x = x + self.cross_attention(normed_x, normed_y, y)[0]
+        # x = x + gate_mlp.unsqueeze(1) * self.mlp(modulate(self.norm2(x), shift_mlp, scale_mlp))
+        x = x + self.attn(self.norm1(x))
+        x = x + self.cross_attention(self.norm2(x), c, c)[0]
+        x = x + self.mlp(self.norm3(x))
         return x
 
 
@@ -142,8 +145,9 @@ class FinalLayer(nn.Module):
         )
 
     def forward(self, x, c):
-        shift, scale = self.adaLN_modulation(c).chunk(2, dim=1)
-        x = modulate(self.norm_final(x), shift, scale)
+        # shift, scale = self.adaLN_modulation(c).chunk(2, dim=1)
+        # x = modulate(self.norm_final(x), shift, scale)
+        x = self.norm_final(x)
         x = self.linear(x)
         return x
 
@@ -324,10 +328,10 @@ class DiT(nn.Module):
         x = self.x_embedder(x) + self.pos_embed  # (N, T, D), where T = H * W / patch_size ** 2
         y = self.y_embedder(cond)                   # (N, T, D), where T = H * W / patch_size ** 2
 
-        t = self.t_embedder(t)                   # (N, D)
-        c = t                                    # (N, D)
+        t = torch.unsqueeze(self.t_embedder(t), dim=1)                   # (N, D)
+        c = t + y                                    # (N, D)
         for block in self.blocks:
-            x = block(x, y, c)                      # (N, T, D)
+            x = block(x, c)                      # (N, T, D)
         x = self.final_layer(x, c)                # (N, T, patch_size ** 2 * out_channels)
         x = self.unpatchify(x)                   # (N, out_channels, H, W)
         return x

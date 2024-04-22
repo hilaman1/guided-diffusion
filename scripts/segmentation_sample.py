@@ -18,6 +18,7 @@ from guided_diffusion.script_util import (
 from models.unet import UNetModel
 from models.DiT import DiT_models
 from polyp_dataset import polyp_dataset
+from ISIC_dataset import ISIC_Dataset
 from diffusers import DDPMScheduler
 
 seed=10
@@ -40,34 +41,48 @@ def main():
 
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
-    images_path = os.path.join(os.getcwd(), "data", "polyps", "train", "train")
-    gt_path = os.path.join(os.getcwd(), "data", "polyps", "train_gt", "train_gt")
-    images_embeddings_path = os.path.join(os.getcwd(), "data", "polyps", "train_embeddings", "train_embeddings")
-    gt_embeddings_path = os.path.join(os.getcwd(), "data", "polyps", "train_gt_embeddings", "train_gt_embeddings")
-    new_image_height = 64
-    new_image_width = 64
-    guided = False
-    normalize = True
-    binary_seg = True
-    ds = polyp_dataset(
-        images_path=images_path,
-        gt_path=gt_path,
-        images_embeddings_path=images_embeddings_path,
-        gt_embeddings_path=gt_embeddings_path,
-        new_image_height=new_image_height,
-        new_image_width=new_image_width,
-        guided=guided,
-        normalize=normalize,
-        binary_seg=binary_seg
-    )
+    if args.data_name == "POLYP":
+        images_path = os.path.join(os.getcwd(), "data", "polyps", "train", "train")
+        gt_path = os.path.join(os.getcwd(), "data", "polyps", "train_gt", "train_gt")
+        images_embeddings_path = os.path.join(os.getcwd(), "data", "polyps", "train_embeddings", "train_embeddings")
+        gt_embeddings_path = os.path.join(os.getcwd(), "data", "polyps", "train_gt_embeddings", "train_gt_embeddings")
+        new_image_height = 64
+        new_image_width = 64
+        guided = False
+        normalize = True
+        binary_seg = True
+        ds = polyp_dataset(
+            images_path=images_path,
+            gt_path=gt_path,
+            images_embeddings_path=images_embeddings_path,
+            gt_embeddings_path=gt_embeddings_path,
+            new_image_height=new_image_height,
+            new_image_width=new_image_width,
+            guided=guided,
+            normalize=normalize,
+            binary_seg=binary_seg
+        )
+
+    elif args.data_name == "ISIC":
+        path = os.path.join(os.getcwd(), "data")
+        new_image_height = 64
+        new_image_width = 64
+        mode = "train"
+        cfg = False
+
+        ds = ISIC_Dataset(path=path,
+                          height=new_image_height,
+                          width=new_image_width,
+                          mode=mode,
+                          cfg=cfg)
 
     dataloader = DataLoader(ds, batch_size=args.batch_size, shuffle=False)
 
     logger.log("creating model and diffusion...")
 
-    model, diffusion = create_model_and_diffusion(
-        **args_to_dict(args, model_and_diffusion_defaults().keys())
-    )
+    # model, diffusion = create_model_and_diffusion(
+    #     **args_to_dict(args, model_and_diffusion_defaults().keys())
+    # )
 
     diffusion = DDPMScheduler(
         num_train_timesteps=1000,
@@ -116,7 +131,8 @@ def main():
         model.convert_to_fp16()
 
     model.eval()
-    diffusion.set_timesteps(50, device)
+    sampling_steps = 50
+    diffusion.set_timesteps(sampling_steps, device)
     for batch_idx, (seg, condition, path) in enumerate(dataloader):
         logger.log("sampling...")
 
@@ -144,7 +160,7 @@ def main():
             # end.record()
 
 
-        for timestep in range(1000 - 1, 0, -int(1000 / 50)):
+        for timestep in range(1000 - 1, 0, -int(1000 / sampling_steps)):
             model_input = torch.cat((condition, noise), dim=1)
             with torch.no_grad():
                 t = torch.tensor([timestep], device=device)
@@ -161,7 +177,6 @@ def main():
 
             sample = diffusion.step(noise_prediction, int(timestep), noise, return_dict=False)[0]
             torch.cuda.synchronize()
-            # print('time for 1 sample', start.elapsed_time(end))  #time measurement for the generation of 1 sample
 
             numpy_seg = torch.permute(seg[0].cpu().detach(), (1, 2, 0)).numpy()
             numpy_sample = torch.permute(sample[0].cpu().detach(), (1, 2, 0)).numpy()
@@ -173,7 +188,7 @@ def main():
 
 def create_argparser():
     defaults = dict(
-        data_name='POLYP',
+        data_name='ISIC',
         data_dir="../dataset",
         clip_denoised=True,
         num_samples=1,

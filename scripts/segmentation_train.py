@@ -20,6 +20,7 @@ from guided_diffusion.train_util import TrainLoop
 from models.unet import UNetModel
 from models.DiT import DiT_models
 from polyp_dataset import polyp_dataset
+from ISIC_dataset import ISIC_Dataset
 
 
 def main():
@@ -30,26 +31,42 @@ def main():
 
     logger.log("creating data loader...")
 
-    images_path = os.path.join(os.getcwd(), "data", "polyps", "train", "train")
-    gt_path = os.path.join(os.getcwd(), "data", "polyps", "train_gt", "train_gt")
-    images_embeddings_path = os.path.join(os.getcwd(), "data", "polyps", "train_embeddings", "train_embeddings")
-    gt_embeddings_path = os.path.join(os.getcwd(), "data", "polyps", "train_gt_embeddings", "train_gt_embeddings")
-    new_image_height = 64
-    new_image_width = 64
-    guided = False
-    normalize = True
-    binary_seg = True
-    ds = polyp_dataset(
-        images_path=images_path,
-        gt_path=gt_path,
-        images_embeddings_path=images_embeddings_path,
-        gt_embeddings_path=gt_embeddings_path,
-        new_image_height=new_image_height,
-        new_image_width=new_image_width,
-        guided=guided,
-        normalize=normalize,
-        binary_seg=binary_seg
-    )
+    ds = None
+    if args.data_name == "POLYP":
+        images_path = os.path.join(os.getcwd(), "data", "polyps", "train", "train")
+        gt_path = os.path.join(os.getcwd(), "data", "polyps", "train_gt", "train_gt")
+        images_embeddings_path = os.path.join(os.getcwd(), "data", "polyps", "train_embeddings", "train_embeddings")
+        gt_embeddings_path = os.path.join(os.getcwd(), "data", "polyps", "train_gt_embeddings", "train_gt_embeddings")
+        new_image_height = 64
+        new_image_width = 64
+        guided = False
+        normalize = True
+        binary_seg = True
+        ds = polyp_dataset(
+            images_path=images_path,
+            gt_path=gt_path,
+            images_embeddings_path=images_embeddings_path,
+            gt_embeddings_path=gt_embeddings_path,
+            new_image_height=new_image_height,
+            new_image_width=new_image_width,
+            guided=guided,
+            normalize=normalize,
+            binary_seg=binary_seg
+        )
+    elif args.data_name == "ISIC":
+        path = os.path.join(os.getcwd(), "data")
+        new_image_height = 64
+        new_image_width = 64
+        mode = "train"
+        cfg = True
+        cfg_prob = 0.1
+
+        ds = ISIC_Dataset(path=path,
+                          height=new_image_height,
+                          width=new_image_width,
+                          mode=mode,
+                          cfg=cfg,
+                          cfg_prob=cfg_prob)
         
     dataloader = DataLoader(ds, batch_size=args.batch_size, shuffle=True)
     data = iter(dataloader)
@@ -113,7 +130,7 @@ def main():
 
 def create_argparser():
     defaults = dict(
-        data_name='POLYP',
+        data_name='ISIC',
         data_dir="C:\\Users\\Admin\\Documents\\GitHub\\guided-diffusion\\datasets",
         schedule_sampler="uniform",
         lr=1e-4,
