@@ -52,6 +52,9 @@ class Sampler:
 
     def sample(self, index):
         print(f"Sampling image {index}")
+        if not os.path.exists(os.path.join(os.getcwd(), "saved_models", self.model_name, "samples")):
+            os.mkdir(os.path.join(os.getcwd(), "saved_models", self.model_name, "samples"))
+
         model.eval()
         self.sampler.set_timesteps(len(range(num_training_steps - 1, 0, -int(num_training_steps / num_testing_steps))),
                                    self.device)
@@ -63,14 +66,14 @@ class Sampler:
         decoded_gt, noise_images = sample(model, self.vae, self.sampler, image, self.num_training_steps,
                                           self.num_testing_steps, self.device, self.cfg_scale, self.guided)
 
-        gif_path = os.path.join(os.getcwd(), "saved_models", self.model_name, f"{self.model_name}.gif")
+        gif_path = os.path.join(os.getcwd(), "saved_models", self.model_name, "samples", f"{index}.gif")
         create_GIF(self.vae, noise_images, gif_path, self.device)
 
         fig, axis = plt.subplots(1, 3)
         axis[0].imshow(torch.permute(torch.squeeze(decoded_gt, dim=0), (1, 2, 0)).cpu().detach())
         axis[1].imshow(torch.permute(torch.squeeze(gt, dim=0), (1, 2, 0)).cpu().detach())
         axis[2].imshow(torch.permute(torch.squeeze(image, dim=0), (1, 2, 0)).cpu().detach())
-        plt.show()
+        plt.savefig(os.path.join(os.getcwd(), "saved_models", self.model_name, "samples", f"{index}.png"))
 
 
 
