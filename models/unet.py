@@ -327,7 +327,6 @@ class UNetModel(nn.Module):
             attention_levels: List[int],
             channel_multipliers: List[int],
             n_heads: int,
-            condition_channels: int,
             tf_layers: int = 1,
             d_cond: int = 768):
         """
@@ -341,7 +340,6 @@ class UNetModel(nn.Module):
         """
         super().__init__()
         self.channels = channels
-        self.condition_channels = condition_channels
 
         # Number of levels
         levels = len(channel_multipliers)
@@ -441,14 +439,12 @@ class UNetModel(nn.Module):
         # $\cos\Bigg(\frac{t}{10000^{\frac{2i}{c}}}\Bigg)$ and $\sin\Bigg(\frac{t}{10000^{\frac{2i}{c}}}\Bigg)$
         return torch.cat([torch.cos(args), torch.sin(args)], dim=-1)
 
-    def forward(self, x: torch.Tensor, time_steps: torch.Tensor):
+    def forward(self, x: torch.Tensor, time_steps: torch.Tensor, cond: torch.Tensor):
         """
         :param x: is the input feature map of shape `[batch_size, channels, width, height]`
         :param time_steps: are the time steps of shape `[batch_size]`
         :param cond: conditioning of shape `[batch_size, n_cond, d_cond]`
         """
-        cond = x[:, :self.condition_channels, :, :]
-        x = x[:, self.condition_channels:, :, :]
         # To store the input half outputs for skip connections
         x_input_block = []
 

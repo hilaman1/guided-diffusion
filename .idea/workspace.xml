@@ -5,12 +5,45 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="3103e7da-fe59-4084-b58a-974be54e4744" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/scripts/ISIC_dataset.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/guided_diffusion/train_util.py" beforeDir="false" afterPath="$PROJECT_DIR$/guided_diffusion/train_util.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scripts/models/DiT.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/models/DiT.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scripts/segmentation_sample.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/segmentation_sample.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scripts/segmentation_train.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/segmentation_train.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/LICENSE" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/datasets/README.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/datasets/lsun_bedroom.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/datasets/polyp_dataset.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/evaluations/README.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/evaluations/evaluator.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/evaluations/requirements.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/guided_diffusion.egg-info/PKG-INFO" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/guided_diffusion/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/guided_diffusion/bratsloader.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/guided_diffusion/btcvloader.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/guided_diffusion/custom_dataset_loader.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/guided_diffusion/dist_util.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/guided_diffusion/dpm_solver.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/guided_diffusion/fp16_util.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/guided_diffusion/gaussian_diffusion.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/guided_diffusion/isicloader.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/guided_diffusion/logger.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/guided_diffusion/losses.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/guided_diffusion/nn.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/guided_diffusion/resample.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/guided_diffusion/respace.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/guided_diffusion/script_util.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/guided_diffusion/train_util.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/guided_diffusion/unet.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/guided_diffusion/utils.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/model-card.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/ISIC_dataset.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/models/DiT.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/models/unet.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/polyp_dataset.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/segmentation_env.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/segmentation_env_PerClass.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/segmentation_sample.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/segmentation_train.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/setup.py" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -39,7 +72,7 @@
   "keyToString": {
     "RunOnceActivity.OpenProjectViewOnStart": "true",
     "RunOnceActivity.ShowReadmeOnStart": "true",
-    "last_opened_file_path": "C:/Users/Admin/Documents/GitHub/DiT",
+    "last_opened_file_path": "C:/Users/Admin/Documents/GitHub/guided-diffusion",
     "settings.editor.selected.configurable": "preferences.general"
   }
 }]]></component>
@@ -82,6 +115,26 @@
           <url>file://$PROJECT_DIR$/guided_diffusion/train_util.py</url>
           <line>214</line>
           <option name="timeStamp" value="99" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/utils.py</url>
+          <line>70</line>
+          <option name="timeStamp" value="100" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/utils.py</url>
+          <line>96</line>
+          <option name="timeStamp" value="101" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/utils.py</url>
+          <line>102</line>
+          <option name="timeStamp" value="102" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/utils.py</url>
+          <line>108</line>
+          <option name="timeStamp" value="103" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>

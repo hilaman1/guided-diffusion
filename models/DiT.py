@@ -17,7 +17,7 @@ from timm.models.vision_transformer import PatchEmbed, Attention, Mlp
 
 
 def modulate(x, shift, scale):
-    return x * (1 + scale.unsqueeze(1)) + shift.unsqueeze(1)
+    return x * (1 + scale) + shift
 
 
 #################################################################################
@@ -109,6 +109,7 @@ class DiTBlock(nn.Module):
         self.norm2 = nn.LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
         self.norm3 = nn.LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
         self.norm4 = nn.LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
+
         mlp_hidden_dim = int(hidden_size * mlp_ratio)
         approx_gelu = lambda: nn.GELU(approximate="tanh")
         self.mlp = Mlp(in_features=hidden_size, hidden_features=mlp_hidden_dim, act_layer=approx_gelu, drop=0)
@@ -119,15 +120,9 @@ class DiTBlock(nn.Module):
         self.cross_attention = nn.MultiheadAttention(hidden_size, num_heads, add_bias_kv=True, batch_first=True)
 
     def forward(self, x, c):
-        # shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = self.adaLN_modulation(c).chunk(6, dim=1)
-        # x = x + gate_msa.unsqueeze(1) * self.attn(modulate(self.norm1(x), shift_msa, scale_msa))
-        # normed_x = self.norm3(x)
-        # normed_y = self.norm4(y)
-        # x = x + self.cross_attention(normed_x, normed_y, y)[0]
-        # x = x + gate_mlp.unsqueeze(1) * self.mlp(modulate(self.norm2(x), shift_mlp, scale_mlp))
-        x = x + self.attn(self.norm1(x))
-        x = x + self.cross_attention(self.norm2(x), c, c)[0]
-        x = x + self.mlp(self.norm3(x))
+        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = self.adaLN_modulation(c).chunk(6, dim=-1)
+        x = x + gate_msa * self.attn(modulate(self.norm1(x), shift_msa, scale_msa))
+        x = x + gate_mlp * self.mlp(modulate(self.norm2(x), shift_mlp, scale_mlp))
         return x
 
 
@@ -145,9 +140,8 @@ class FinalLayer(nn.Module):
         )
 
     def forward(self, x, c):
-        # shift, scale = self.adaLN_modulation(c).chunk(2, dim=1)
-        # x = modulate(self.norm_final(x), shift, scale)
-        x = self.norm_final(x)
+        shift, scale = self.adaLN_modulation(c).chunk(2, dim=-1)
+        x = modulate(self.norm_final(x), shift, scale)
         x = self.linear(x)
         return x
 
@@ -166,39 +160,6 @@ class DoubleConv(nn.Module):
 
     def forward(self, x):
         return self.model(x)
-
-
-class Atten(nn.Module):
-    def __init__(self, in_channels, input_size=32):
-        super().__init__()
-        self.norm1 = nn.LayerNorm([in_channels, input_size, input_size], elementwise_affine=False, eps=1e-6)
-        self.norm2 = nn.LayerNorm([in_channels, input_size, input_size], elementwise_affine=False, eps=1e-6)
-
-    def forward(self, x, y):
-        return (self.norm1(x) * self.norm2(y)) * y
-
-
-class process(nn.Module):
-    def __init__(self, in_channels, out_channels):
-        super().__init__()
-        self.x_doubleconv_1 = DoubleConv(in_channels, 256, 32)
-        self.x_doubleconv_2 = DoubleConv(256, out_channels, 32)
-
-        self.y_doubleconv_1 = DoubleConv(in_channels, 256, 32)
-        self.y_doubleconv_2 = DoubleConv(256, out_channels, 32)
-
-        self.atten1 = Atten(256)
-
-    def forward(self, x, y):
-        x = self.x_doubleconv_1(x)
-        y = self.y_doubleconv_1(y)
-
-        y = self.atten1(x, y)
-
-        x = self.x_doubleconv_2(x)
-        y = self.y_doubleconv_2(y)
-
-        return x + y
 
 
 class Patchify(nn.Module):
@@ -245,10 +206,10 @@ class DiT(nn.Module):
         self.num_heads = num_heads
         self.condition_channels = condition_channels
 
-        # self.process = process(in_channels, hidden_size)
         self.x_embedder = PatchEmbed(input_size, patch_size, in_channels, hidden_size, bias=True)
         self.t_embedder = TimestepEmbedder(hidden_size)
         self.y_embedder = PatchEmbed(input_size, patch_size, condition_channels, hidden_size, bias=True)
+        self.norm = nn.LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
 
         num_patches = self.x_embedder.num_patches
         # Will use fixed sin-cos embedding:
@@ -273,14 +234,12 @@ class DiT(nn.Module):
         pos_embed = get_2d_sincos_pos_embed(self.pos_embed.shape[-1], int(self.x_embedder.num_patches ** 0.5))
         self.pos_embed.data.copy_(torch.from_numpy(pos_embed).float().unsqueeze(0))
 
-        # Initialize patch_embed like nn.Linear (instead of nn.Conv2d):
+        # Initialize patch_embed for x embedder like nn.Linear (instead of nn.Conv2d):
         w = self.x_embedder.proj.weight.data
         nn.init.xavier_uniform_(w.view([w.shape[0], -1]))
         nn.init.constant_(self.x_embedder.proj.bias, 0)
 
-        # Initialize label embedding table:
-        # nn.init.normal_(self.y_embedder[0].weight, std=0.02)
-        # nn.init.normal_(self.y_embedder[2].weight, std=0.02)
+        # Initialize for y embedder patch_embed like nn.Linear (instead of nn.Conv2d):
         w = self.y_embedder.proj.weight.data
         nn.init.xavier_uniform_(w.view([w.shape[0], -1]))
         nn.init.constant_(self.y_embedder.proj.bias, 0)
@@ -315,35 +274,32 @@ class DiT(nn.Module):
         imgs = x.reshape(shape=(x.shape[0], c, h * p, h * p))
         return imgs
 
-    def forward(self, x, t):
+    def forward(self, x, t, cond):
         """
         Forward pass of DiT.
         x: (N, C, H, W) tensor of spatial inputs (images or latent representations of images)
         t: (N,) tensor of diffusion timesteps
         y: (N,) tensor of class labels
         """
-        cond = x[:, :self.condition_channels, :, :]
-        x = x[:, self.condition_channels:, :, :]
-
         x = self.x_embedder(x) + self.pos_embed  # (N, T, D), where T = H * W / patch_size ** 2
         y = self.y_embedder(cond)                   # (N, T, D), where T = H * W / patch_size ** 2
 
         t = torch.unsqueeze(self.t_embedder(t), dim=1)                   # (N, D)
-        c = t + y                                    # (N, D)
+        c = t + y
         for block in self.blocks:
             x = block(x, c)                      # (N, T, D)
-        x = self.final_layer(x, c)                # (N, T, patch_size ** 2 * out_channels)
+        x = self.final_layer(x, t)                # (N, T, patch_size ** 2 * out_channels)
         x = self.unpatchify(x)                   # (N, out_channels, H, W)
         return x
 
-    def forward_with_cfg(self, x, t, cfg_scale):
+    def forward_with_cfg(self, x, t, y, cfg_scale):
         """
         Forward pass of DiT, but also batches the unconditional forward pass for classifier-free guidance.
         """
         # https://github.com/openai/glide-text2im/blob/main/notebooks/text2im.ipynb
         half = x[: len(x) // 2]
         combined = torch.cat([half, half], dim=0)
-        model_out = self.forward(combined, t)
+        model_out = self.forward(combined, t, y)
         # For exact reproducibility reasons, we apply classifier-free guidance on only
         # three channels by default. The standard approach to cfg applies it to all channels.
         # This can be done by uncommenting the following line and commenting-out the line following that.
@@ -457,3 +413,5 @@ DiT_models = {
     'DiT-B/2':  DiT_B_2,   'DiT-B/4':  DiT_B_4,   'DiT-B/8':  DiT_B_8,
     'DiT-S/2':  DiT_S_2,   'DiT-S/4':  DiT_S_4,   'DiT-S/8':  DiT_S_8,
 }
+
+

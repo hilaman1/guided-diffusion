@@ -7,3 +7,5 @@ classify_image_graph_def.pb
 *.csv
 *.pt
 *.txt
+*.gif
+*.log
