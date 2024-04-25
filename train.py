@@ -170,7 +170,10 @@ def main(rank: int, world_size: int, args):
     guided = True
     load_pretrained_model = args.load_pretrained
 
-    model = DiT_models['DiT-B/4'](condition_channels=4, learn_sigma=False)
+    if model_name == "PolypDiT_B2":
+        model = DiT_models['DiT-B/2'](condition_channels=4, learn_sigma=False)
+    if model_name == "PolypDiT_B4":
+        model = DiT_models['DiT-B/4'](condition_channels=4, learn_sigma=False)
     handler = Trainer(model=model,
                       model_name=model_name,
                       load_pretrained_model=load_pretrained_model,
@@ -199,7 +202,7 @@ if __name__ == "__main__":
     assert torch.cuda.is_available(), "Did not find a GPU"
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model-name", type=str, default="PolypDiT")
+    parser.add_argument("--model-name", type=str, default="PolypDiT_B2")
     parser.add_argument("--data-path", type=str, default="./data/polyps")
     parser.add_argument("--epochs", type=int, default=1000)
     parser.add_argument("--batch-size", type=int, default=32)

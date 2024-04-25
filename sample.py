@@ -7,6 +7,7 @@ from diffusers.models import AutoencoderKL
 from diffusers import DDPMScheduler
 from polyp_dataset import polyp_dataset
 import matplotlib.pyplot as plt
+import cv2
 
 
 torch.manual_seed(42)
@@ -26,7 +27,7 @@ class Sampler:
 
         test_dataset = polyp_dataset(
             data_path=data_path,
-            mode="train"
+            mode="test"
         )
         self.test_dataloader = DataLoader(test_dataset, batch_size=1, shuffle=False)
 
@@ -50,8 +51,7 @@ class Sampler:
         checkpoint = torch.load(self.model_path, map_location=self.device)
         self.model.load_state_dict(checkpoint["model"])
 
-    def sample(self, index):
-        print(f"Sampling image {index}")
+    def sample(self, predictions_path):
         if not os.path.exists(os.path.join(os.getcwd(), "saved_models", self.model_name, "samples")):
             os.mkdir(os.path.join(os.getcwd(), "saved_models", self.model_name, "samples"))
 
@@ -59,28 +59,53 @@ class Sampler:
         self.sampler.set_timesteps(len(range(num_training_steps - 1, 0, -int(num_training_steps / num_testing_steps))),
                                    self.device)
         data_iter = iter(self.test_dataloader)
-        gt = None
-        image = None
-        for i in range(index):
+
+        for i in range(len(self.test_dataloader)):
+            print(f"Sampling image {i+1}")
+
             gt, image = next(data_iter)
-        decoded_gt, noise_images = sample(model, self.vae, self.sampler, image, self.num_training_steps,
-                                          self.num_testing_steps, self.device, self.cfg_scale, self.guided)
+            prediction, noise_images = sample(model, self.vae, self.sampler, image, self.num_training_steps,
+                                              self.num_testing_steps, self.device, self.cfg_scale, self.guided)
+            model_pred_path = os.path.join(predictions_path, model_name)
+            if not os.path.exists(model_pred_path):
+                os.mkdir(model_pred_path)
+            curr_prediction_path = os.path.join(model_pred_path, f"pred_{i + 1}.png")
 
-        gif_path = os.path.join(os.getcwd(), "saved_models", self.model_name, "samples", f"{index}.gif")
-        create_GIF(self.vae, noise_images, gif_path, self.device)
+            # save the prediction image
+            im = cv2.cvtColor(torch.permute(torch.squeeze(prediction, dim=0), (1, 2, 0)).cpu().detach().numpy(),
+                              cv2.COLOR_RGB2BGR)
+            cv2.imwrite(curr_prediction_path, im * 255)
 
-        fig, axis = plt.subplots(1, 3)
-        axis[0].imshow(torch.permute(torch.squeeze(decoded_gt, dim=0), (1, 2, 0)).cpu().detach())
-        axis[1].imshow(torch.permute(torch.squeeze(gt, dim=0), (1, 2, 0)).cpu().detach())
-        axis[2].imshow(torch.permute(torch.squeeze(image, dim=0), (1, 2, 0)).cpu().detach())
-        plt.savefig(os.path.join(os.getcwd(), "saved_models", self.model_name, "samples", f"{index}.png"))
+            # gif_path = os.path.join(os.getcwd(), "saved_models", self.model_name, "samples", f"{i+1}.gif")
+            # create_GIF(self.vae, noise_images, gif_path, self.device)
+            gt = gt / 0.18125
+            gt = self.vae.decode(gt).sample
+
+            image = image / 0.18125
+            image = self.vae.decode(image).sample
+
+            fig, axis = plt.subplots(1, 3)
+            axis[2].imshow(torch.permute(torch.squeeze(prediction, dim=0), (1, 2, 0)).cpu().detach())
+            axis[2].set_title("Prediction")
+            axis[1].imshow(torch.permute(torch.squeeze(gt, dim=0), (1, 2, 0)).cpu().detach())
+            axis[1].set_title("GT")
+            axis[0].imshow(torch.permute(torch.squeeze(image, dim=0), (1, 2, 0)).cpu().detach())
+            axis[0].set_title("Image")
+            plt.savefig(os.path.join(os.getcwd(), "saved_models", self.model_name, "samples", f"{i+1}.png"))
+
 
 
 
 if __name__ == "__main__":
-    model = DiT_models['DiT-B/4'](condition_channels=4, learn_sigma=False)
-    model_name = f"AdaptiveLayerNormalization_B4"
-    data_path = os.path.join(os.getcwd(), "data", "polyps")
+    model_name = "PolypDiT_B2"
+
+    if model_name == "PolypDiT_B2":
+        model = DiT_models['DiT-B/2'](condition_channels=4, learn_sigma=False)
+    if model_name == "PolypDiT_B4":
+        model = DiT_models['DiT-B/4'](condition_channels=4, learn_sigma=False)
+
+    data_path = r"D:\Hila\guided-diffusion\datasets\polyps"
+    predictions_path = r"D:\Hila\guided-diffusion\datasets\polyps\pred"
     beta_start = 10 ** -4
     beta_end = 2 * 10 ** -2
     num_training_steps = 1000
@@ -100,5 +125,4 @@ if __name__ == "__main__":
         guided=guided
     )
 
-    index = 3
-    sampler.sample(index=index)
+    sampler.sample(predictions_path)
