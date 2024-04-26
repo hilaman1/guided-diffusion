@@ -144,10 +144,15 @@ def main():
     argParser.add_argument("--model_name", type=str, default="PolypDiT_B2")
     argParser.add_argument("--pred_path", type=str, default=r"D:\Hila\guided-diffusion\datasets\polyps\pred")
     argParser.add_argument("--data_path", type=str, default=r"D:\Hila\guided-diffusion\datasets\polyps")
+    argParser.add_argument("--num_training_steps", type=str, default="6000")
     args = argParser.parse_args()
+    num_training_steps = args.num_training_steps
+
     mix_res = (0, 0)
     num = 0
     model_pred_path = os.path.join(f"{args.pred_path}", f"{args.model_name}")
+    model_pred_path = os.path.join(model_pred_path, f"num_training_steps_{args.num_training_steps}")
+
     test_dataset = polyp_dataset(
         data_path=data_path,
         mode="test"

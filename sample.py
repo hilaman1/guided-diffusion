@@ -52,8 +52,8 @@ class Sampler:
         self.model.load_state_dict(checkpoint["model"])
 
     def sample(self, predictions_path):
-        if not os.path.exists(os.path.join(os.getcwd(), "saved_models", self.model_name, "samples")):
-            os.mkdir(os.path.join(os.getcwd(), "saved_models", self.model_name, "samples"))
+        if not os.path.exists(os.path.join(os.getcwd(), "saved_models", self.model_name, f"samples_{self.num_training_steps}")):
+            os.mkdir(os.path.join(os.getcwd(), "saved_models", self.model_name, f"samples_{self.num_training_steps}"))
 
         model.eval()
         self.sampler.set_timesteps(len(range(num_training_steps - 1, 0, -int(num_training_steps / num_testing_steps))),
@@ -69,15 +69,18 @@ class Sampler:
             model_pred_path = os.path.join(predictions_path, model_name)
             if not os.path.exists(model_pred_path):
                 os.mkdir(model_pred_path)
+            if not os.path.exists(f"{model_pred_path}/num_training_steps_{self.num_training_steps}"):
+                os.mkdir(f"{model_pred_path}/num_training_steps_{self.num_training_steps}")
+            model_pred_path = os.path.join(model_pred_path, f"num_training_steps_{self.num_training_steps}")
             curr_prediction_path = os.path.join(model_pred_path, f"pred_{i + 1}.png")
 
             # save the prediction image
             im = cv2.cvtColor(torch.permute(torch.squeeze(prediction, dim=0), (1, 2, 0)).cpu().detach().numpy(),
                               cv2.COLOR_RGB2BGR)
             cv2.imwrite(curr_prediction_path, im * 255)
-
-            # gif_path = os.path.join(os.getcwd(), "saved_models", self.model_name, "samples", f"{i+1}.gif")
-            # create_GIF(self.vae, noise_images, gif_path, self.device)
+            if i+1 in [1, 33, 36, 71, 159]:
+                gif_path = os.path.join(os.getcwd(), "saved_models", self.model_name, f"samples_{self.num_training_steps}", f"{i+1}.gif")
+                create_GIF(self.vae, noise_images, gif_path, self.device)
             gt = gt / 0.18125
             gt = self.vae.decode(gt).sample
 
@@ -91,7 +94,7 @@ class Sampler:
             axis[1].set_title("GT")
             axis[0].imshow(torch.permute(torch.squeeze(image, dim=0), (1, 2, 0)).cpu().detach())
             axis[0].set_title("Image")
-            plt.savefig(os.path.join(os.getcwd(), "saved_models", self.model_name, "samples", f"{i+1}.png"))
+            plt.savefig(os.path.join(os.getcwd(), "saved_models", self.model_name, f"samples_{self.num_training_steps}", f"{i+1}.png"))
 
 
 
@@ -108,7 +111,7 @@ if __name__ == "__main__":
     predictions_path = r"D:\Hila\guided-diffusion\datasets\polyps\pred"
     beta_start = 10 ** -4
     beta_end = 2 * 10 ** -2
-    num_training_steps = 1000
+    num_training_steps = 6000
     num_testing_steps = 100
     cfg_scale = 3.0
     guided = True

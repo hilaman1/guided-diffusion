@@ -19,7 +19,7 @@ torch.manual_seed(42)
 class Trainer:
     def __init__(self, model, model_name, load_pretrained_model, gpu_id, data_path, criterion, batch_size, lr, epochs,
                  num_training_steps, beta_start, beta_end, num_testing_steps, guided, apply_cfg, cfg_prob, cfg_scale):
-        self.model = model
+        self.model = model.to(gpu_id)
         self.model_name = model_name
         self.load_pretrained_model = load_pretrained_model
         self.gpu_id = gpu_id
@@ -97,9 +97,9 @@ class Trainer:
             if self.apply_cfg:
                 image = image * create_cfg_mask(image.shape, self.cfg_prob, self.gpu_id)
 
-            noise_prediction = self.model(noisy_gt, timestep, image)
+            noise_prediction = self.model(noisy_gt.to(self.gpu_id), timestep, image.to(self.gpu_id))
 
-            loss = self.criterion(noise_prediction, noise)
+            loss = self.criterion(noise_prediction.to(self.gpu_id), noise)
 
             loss.backward()
             self.optimizer.step()
@@ -204,9 +204,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--model-name", type=str, default="PolypDiT_B2")
     parser.add_argument("--data-path", type=str, default="./data/polyps")
-    parser.add_argument("--epochs", type=int, default=1000)
+    parser.add_argument("--epochs", type=int, default=5000)
     parser.add_argument("--batch-size", type=int, default=32)
-    parser.add_argument("--load-pretrained", type=bool, default=False)
+    parser.add_argument("--load-pretrained", type=bool, default=True)
 
     args = parser.parse_args()
 
