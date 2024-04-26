@@ -1,3 +1,8 @@
+# Modified from OpenAI's diffusion repos
+#     GLIDE: https://github.com/openai/glide-text2im/blob/main/glide_text2im/gaussian_diffusion.py
+#     ADM:   https://github.com/openai/guided-diffusion/blob/main/guided_diffusion
+#     IDDPM: https://github.com/openai/improved-diffusion/blob/main/improved_diffusion/gaussian_diffusion.py
+
 from abc import ABC, abstractmethod
 
 import numpy as np
@@ -5,15 +10,14 @@ import torch as th
 import torch.distributed as dist
 
 
-def create_named_schedule_sampler(name, diffusion, maxt):
+def create_named_schedule_sampler(name, diffusion):
     """
     Create a ScheduleSampler from a library of pre-defined samplers.
-
     :param name: the name of the sampler.
     :param diffusion: the diffusion object to sample for.
     """
     if name == "uniform":
-        return UniformSampler(diffusion, maxt)
+        return UniformSampler(diffusion)
     elif name == "loss-second-moment":
         return LossSecondMomentResampler(diffusion)
     else:
@@ -24,7 +28,6 @@ class ScheduleSampler(ABC):
     """
     A distribution over timesteps in the diffusion process, intended to reduce
     variance of the objective.
-
     By default, samplers perform unbiased importance sampling, in which the
     objective's mean is unchanged.
     However, subclasses may override sample() to change how the resampled
@@ -35,14 +38,12 @@ class ScheduleSampler(ABC):
     def weights(self):
         """
         Get a numpy array of weights, one per diffusion step.
-
         The weights needn't be normalized, but must be positive.
         """
 
     def sample(self, batch_size, device):
         """
         Importance-sample timesteps for a batch.
-
         :param batch_size: the number of timesteps.
         :param device: the torch device to save to.
         :return: a tuple (timesteps, weights):
@@ -59,9 +60,9 @@ class ScheduleSampler(ABC):
 
 
 class UniformSampler(ScheduleSampler):
-    def __init__(self, diffusion, maxt):
+    def __init__(self, diffusion):
         self.diffusion = diffusion
-        self._weights = np.ones([maxt])
+        self._weights = np.ones([diffusion.num_timesteps])
 
     def weights(self):
         return self._weights
@@ -71,12 +72,10 @@ class LossAwareSampler(ScheduleSampler):
     def update_with_local_losses(self, local_ts, local_losses):
         """
         Update the reweighting using losses from a model.
-
         Call this method from each rank with a batch of timesteps and the
         corresponding losses for each of those timesteps.
         This method will perform synchronization to make sure all of the ranks
         maintain the exact same reweighting.
-
         :param local_ts: an integer Tensor of timesteps.
         :param local_losses: a 1D Tensor of losses.
         """
@@ -107,15 +106,12 @@ class LossAwareSampler(ScheduleSampler):
     def update_with_all_losses(self, ts, losses):
         """
         Update the reweighting using losses from a model.
-
         Sub-classes should override this method to update the reweighting
         using losses from the model.
-
         This method directly updates the reweighting without synchronizing
         between workers. It is called by update_with_local_losses from all
         ranks with identical arguments. Thus, it should have deterministic
         behavior to maintain state across workers.
-
         :param ts: a list of int timesteps.
         :param losses: a list of float losses, one per timestep.
         """

@@ -1,3 +1,8 @@
+# Modified from OpenAI's diffusion repos
+#     GLIDE: https://github.com/openai/glide-text2im/blob/main/glide_text2im/gaussian_diffusion.py
+#     ADM:   https://github.com/openai/guided-diffusion/blob/main/guided_diffusion
+#     IDDPM: https://github.com/openai/improved-diffusion/blob/main/improved_diffusion/gaussian_diffusion.py
+
 import numpy as np
 import torch as th
 
@@ -9,14 +14,11 @@ def space_timesteps(num_timesteps, section_counts):
     Create a list of timesteps to use from an original diffusion process,
     given the number of timesteps we want to take from equally-sized portions
     of the original process.
-
     For example, if there's 300 timesteps and the section counts are [10,15,20]
     then the first 100 timesteps are strided to be 10 timesteps, the second 100
     are strided to be 15 timesteps, and the final 100 are strided to be 20.
-
     If the stride is a string starting with "ddim", then the fixed striding
     from the DDIM paper is used, and only one section is allowed.
-
     :param num_timesteps: the number of diffusion steps in the original
                           process to divide up.
     :param section_counts: either a list of numbers, or a string containing
@@ -63,7 +65,6 @@ def space_timesteps(num_timesteps, section_counts):
 class SpacedDiffusion(GaussianDiffusion):
     """
     A diffusion process which can skip steps in a base diffusion process.
-
     :param use_timesteps: a collection (sequence or set) of timesteps from the
                           original diffusion process to retain.
     :param kwargs: the kwargs to create the base diffusion process.
@@ -73,6 +74,7 @@ class SpacedDiffusion(GaussianDiffusion):
         self.use_timesteps = set(use_timesteps)
         self.timestep_map = []
         self.original_num_steps = len(kwargs["betas"])
+
         base_diffusion = GaussianDiffusion(**kwargs)  # pylint: disable=missing-kwoa
         last_alpha_cumprod = 1.0
         new_betas = []
@@ -95,7 +97,7 @@ class SpacedDiffusion(GaussianDiffusion):
         return super().training_losses(self._wrap_model(model), *args, **kwargs)
 
     def condition_mean(self, cond_fn, *args, **kwargs):
-        return super().condition_mean(self._wrap_model2(cond_fn), *args, **kwargs)
+        return super().condition_mean(self._wrap_model(cond_fn), *args, **kwargs)
 
     def condition_score(self, cond_fn, *args, **kwargs):
         return super().condition_score(self._wrap_model(cond_fn), *args, **kwargs)
@@ -104,13 +106,7 @@ class SpacedDiffusion(GaussianDiffusion):
         if isinstance(model, _WrappedModel):
             return model
         return _WrappedModel(
-            model, self.timestep_map, self.rescale_timesteps, self.original_num_steps
-        )
-    def _wrap_model2(self, model):
-        if isinstance(model, _WrappedModel2):
-            return model
-        return _WrappedModel2(
-            model, self.timestep_map, self.rescale_timesteps, self.original_num_steps
+            model, self.timestep_map, self.original_num_steps
         )
 
     def _scale_timesteps(self, t):
@@ -119,33 +115,15 @@ class SpacedDiffusion(GaussianDiffusion):
 
 
 class _WrappedModel:
-    def __init__(self, model, timestep_map, rescale_timesteps, original_num_steps):
+    def __init__(self, model, timestep_map, original_num_steps):
         self.model = model
         self.timestep_map = timestep_map
-        self.rescale_timesteps = rescale_timesteps
+        # self.rescale_timesteps = rescale_timesteps
         self.original_num_steps = original_num_steps
-
 
     def __call__(self, x, ts, **kwargs):
         map_tensor = th.tensor(self.timestep_map, device=ts.device, dtype=ts.dtype)
         new_ts = map_tensor[ts]
-
-        if self.rescale_timesteps:
-            new_ts = new_ts.float() * (1000.0 / self.original_num_steps)
+        # if self.rescale_timesteps:
+        #     new_ts = new_ts.float() * (1000.0 / self.original_num_steps)
         return self.model(x, new_ts, **kwargs)
-
-
-
-class _WrappedModel2:
-    def __init__(self, model, timestep_map, rescale_timesteps, original_num_steps):
-        self.model = model
-        self.timestep_map = timestep_map
-        self.rescale_timesteps = rescale_timesteps
-        self.original_num_steps = original_num_steps
-
-    def __call__(self, x, ts, org, **kwargs):
-        map_tensor = th.tensor(self.timestep_map, device=ts.device, dtype=ts.dtype)
-        new_ts = map_tensor[ts]
-        if self.rescale_timesteps:
-            new_ts = new_ts.float() * (1000.0 / self.original_num_steps)
-        return self.model(x, new_ts,org, **kwargs)
