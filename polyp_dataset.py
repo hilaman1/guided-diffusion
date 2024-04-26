@@ -20,12 +20,13 @@ class polyp_dataset(Dataset):
         self.images_embeddings = os.listdir(os.path.join(data_path, "train_embeddings", "train_embeddings"))
         self.gt_embeddings = os.listdir(os.path.join(data_path, "train_gt_embeddings", "train_gt_embeddings"))
 
+        n_images = int(TRAIN_IMAGES_FRACTION * len(self.images_embeddings))
         if mode == "train":
-            self.images_embeddings = self.images_embeddings[:int(TRAIN_IMAGES_FRACTION * len(self.images_embeddings))]
-            self.gt_embeddings = self.gt_embeddings[:int(TRAIN_IMAGES_FRACTION * len(self.images_embeddings))]
+            self.images_embeddings = self.images_embeddings[:n_images]
+            self.gt_embeddings = self.gt_embeddings[:n_images]
         if mode == "test":
-            self.images_embeddings = self.images_embeddings[int(TRAIN_IMAGES_FRACTION * len(self.images_embeddings)):]
-            self.gt_embeddings = self.gt_embeddings[int(TRAIN_IMAGES_FRACTION * len(self.images_embeddings)):]
+            self.images_embeddings = self.images_embeddings[n_images:]
+            self.gt_embeddings = self.gt_embeddings[n_images:]
 
     def __len__(self):
         return len(self.images_embeddings)
@@ -60,11 +61,11 @@ if __name__ == "__main__":
 
     print(f"Dataset length {len(dataset)}")
 
-    dataloader = DataLoader(dataset, batch_size=1, shuffle=False)
+    dataloader = DataLoader(dataset, batch_size=32, shuffle=False, drop_last=True)
 
     fig, axis = plt.subplots(2, 3)
     i = 0
-    for image_embeddings, gt_embeddings in dataloader:
+    for batch_idx, (image_embeddings, gt_embeddings) in enumerate(dataloader):
         image_embeddings = torch.squeeze(image_embeddings, dim=0)
         gt_embeddings = torch.squeeze(gt_embeddings, dim=0)
         if i == 3:
