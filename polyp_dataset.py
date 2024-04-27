@@ -61,11 +61,11 @@ if __name__ == "__main__":
 
     print(f"Dataset length {len(dataset)}")
 
-    dataloader = DataLoader(dataset, batch_size=1, shuffle=False)
+    dataloader = DataLoader(dataset, batch_size=32, shuffle=False, drop_last=True)
 
     fig, axis = plt.subplots(2, 3)
     i = 0
-    for image_embeddings, gt_embeddings in dataloader:
+    for batch_idx, (image_embeddings, gt_embeddings) in enumerate(dataloader):
         image_embeddings = torch.squeeze(image_embeddings, dim=0)
         gt_embeddings = torch.squeeze(gt_embeddings, dim=0)
         if i == 3:
