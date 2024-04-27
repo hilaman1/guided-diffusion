@@ -17,15 +17,16 @@ class polyp_dataset(Dataset):
         self.data_path = data_path
         self.transform = transform
 
-        self.images_embeddings = os.listdir(os.path.join(data_path, "train_embeddings", "train_embeddings"))
-        self.gt_embeddings = os.listdir(os.path.join(data_path, "train_gt_embeddings", "train_gt_embeddings"))
+        self.images_embeddings = os.listdir(os.path.join(data_path, "dataset_embeddings", "train_embeddings", "train_embeddings"))
+        self.gt_embeddings = os.listdir(os.path.join(data_path, "dataset_embeddings", "train_gt_embeddings", "train_gt_embeddings"))
 
+        n_images = int(TRAIN_IMAGES_FRACTION * len(self.images_embeddings))
         if mode == "train":
-            self.images_embeddings = self.images_embeddings[:int(TRAIN_IMAGES_FRACTION * len(self.images_embeddings))]
-            self.gt_embeddings = self.gt_embeddings[:int(TRAIN_IMAGES_FRACTION * len(self.images_embeddings))]
+            self.images_embeddings = self.images_embeddings[:n_images]
+            self.gt_embeddings = self.gt_embeddings[:n_images]
         if mode == "test":
-            self.images_embeddings = self.images_embeddings[int(TRAIN_IMAGES_FRACTION * len(self.images_embeddings)):]
-            self.gt_embeddings = self.gt_embeddings[int(TRAIN_IMAGES_FRACTION * len(self.images_embeddings)):]
+            self.images_embeddings = self.images_embeddings[n_images:]
+            self.gt_embeddings = self.gt_embeddings[n_images:]
 
     def __len__(self):
         return len(self.images_embeddings)
@@ -34,9 +35,9 @@ class polyp_dataset(Dataset):
         image_embeddings_path = self.images_embeddings[idx]
         gt_embeddings_path = self.gt_embeddings[idx]
 
-        image_embeddings = torch.load(str(os.path.join(self.data_path, "train_embeddings", "train_embeddings",
+        image_embeddings = torch.load(str(os.path.join(self.data_path, "dataset_embeddings", "train_embeddings", "train_embeddings",
                                                        image_embeddings_path)))
-        gt_embeddings = torch.load(str(os.path.join(self.data_path, "train_gt_embeddings", "train_gt_embeddings",
+        gt_embeddings = torch.load(str(os.path.join(self.data_path, "dataset_embeddings", "train_gt_embeddings", "train_gt_embeddings",
                                                     gt_embeddings_path)))
 
         image_embeddings = torch.squeeze(image_embeddings, dim=0)

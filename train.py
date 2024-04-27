@@ -191,7 +191,7 @@ def main(args):
         transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5], inplace=True)
     ])
 
-    data_path = os.path.join(os.getcwd(), "data", "polyps")
+    data_path = os.path.join(os.getcwd(), "datasets", "polyps")
     dataset = polyp_dataset(
         data_path=data_path,
         mode="train"
@@ -294,7 +294,7 @@ if __name__ == "__main__":
     parser.add_argument("--image-size", type=int, choices=[256, 512], default=256)
     parser.add_argument("--num-classes", type=int, default=1000)
     parser.add_argument("--epochs", type=int, default=1400)
-    parser.add_argument("--global-batch-size", type=int, default=32)
+    parser.add_argument("--global-batch-size", type=int, default=16)
     parser.add_argument("--global-seed", type=int, default=0)
     parser.add_argument("--vae", type=str, choices=["ema", "mse"], default="ema")  # Choice doesn't affect training
     parser.add_argument("--num-workers", type=int, default=4)
