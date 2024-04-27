@@ -18,8 +18,8 @@ class polyp_dataset(Dataset):
         self.data_path = data_path
         self.mode = mode
 
-        self.images_embeddings_path = r"D:\Hila\guided-diffusion\datasets\polyps\dataset_embeddings\train_embeddings\train_embeddings"
-        self.gt_embeddings_path = r"D:\Hila\guided-diffusion\datasets\polyps\dataset_embeddings\train_gt_embeddings\train_gt_embeddings"
+        self.images_embeddings_path = os.path.join(self.data_path, "train_embeddings", "train_embeddings")
+        self.gt_embeddings_path = os.path.join(self.data_path, "train_gt_embeddings", "train_gt_embeddings")
         self.transform = transform
 
         self.images_embeddings = os.listdir(os.path.join(self.images_embeddings_path))

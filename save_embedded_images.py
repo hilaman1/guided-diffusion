@@ -46,9 +46,45 @@ def save_embedded_images(data_path, images_path, gt_path, resize_height=512, res
         image = torch.unsqueeze(image, dim=0).to(device)
         gt = torch.unsqueeze(gt, dim=0).to(device)
 
+        # get the channel with the maximum sum in gt
+        sum_lst = []
+        for channel in range(gt.shape[1]):
+            channel_sum = torch.sum(gt[0, channel])
+            sum_lst.append(channel_sum)
+        max_sum = max(sum_lst)
+        max_sum_idx = sum_lst.index(max_sum)
+
+        # get the values in the channel with the maximum sum
+        max_sum_channel = torch.squeeze(gt, dim=0)[max_sum_idx, :,:]
+        max_sum_channel = torch.unsqueeze(max_sum_channel, dim=0)
+        gt_single_channel = torch.cat((max_sum_channel, max_sum_channel, max_sum_channel), dim=0)
+        gt_single_channel = torch.unsqueeze(gt_single_channel, dim=0)
+
+        # # plot the single channel gt
+        # plt.figure()
+        # plt.imshow(torch.permute(torch.squeeze(gt_single_channel.cpu(), dim=0), (1, 2, 0)))
+        # plt.show()
+
         with torch.no_grad():
             image_embeddings = vae.encode(image).latent_dist.sample()
-            gt_embeddings = vae.encode(gt).latent_dist.sample()
+            gt_embeddings = vae.encode(gt_single_channel).latent_dist.sample()
+
+        gt_embeddings = gt_embeddings / 0.18125
+        gt = vae.decode(gt_embeddings).sample
+
+        # # plot the gt
+        # plt.figure()
+        # plt.imshow(torch.permute(torch.squeeze(gt, dim=0), (1, 2, 0)).cpu().detach().numpy() * 255)
+        # plt.show()
+        #
+        # gt=torch.squeeze(gt,dim=0)
+        # # create a binary image
+        # gt = torch.sqrt(gt[0, :, :] ** 2 + gt[1, :, :] ** 2 + gt[2, :, :] ** 2)
+        # gt[gt < 0.5] = 0
+        # gt[gt >= 0.5] = 1
+        # plt.figure()
+        # plt.imshow(gt.cpu().detach().numpy())
+        # plt.show()
 
         image_output_file = os.path.join(output_image_path, f"{images_list[i]}.pt")
         gt_output_file = os.path.join(output_gt_path, f"{gt_list[i]}.pt")

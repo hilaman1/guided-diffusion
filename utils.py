@@ -72,6 +72,7 @@ def create_GIF(vae, images_list, path, device):
     directory = os.path.join(os.getcwd(), "GIF images")
     if os.path.exists(directory):
         delete_dir(directory)
+        os.mkdir(directory)
     else:
         os.mkdir(directory)
 
