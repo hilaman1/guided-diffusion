@@ -1,6 +1,6 @@
 import torch
 from torch.utils.data import Dataset, DataLoader
-from torchvision import transforms
+import torchvision.transforms.functional as TF
 import numpy as np
 import os
 import matplotlib.pyplot as plt
@@ -12,11 +12,13 @@ import cv2
 TRAIN_FRACTION = 0.8
 
 class polyp_dataset(Dataset):
-    def __init__(self, data_path, mode, transform=None):
+    def __init__(self, data_path, mode, transform=None, vae=None):
         super().__init__()
         assert mode in ["train", "test"], "Mode must be train/test"
         self.data_path = data_path
         self.mode = mode
+        self.device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+        self.vae = vae
 
         self.images_embeddings_path = os.path.join(self.data_path, "train_embeddings", "train_embeddings")
         self.gt_embeddings_path = os.path.join(self.data_path, "train_gt_embeddings", "train_gt_embeddings")
@@ -25,13 +27,29 @@ class polyp_dataset(Dataset):
         self.images_embeddings = os.listdir(os.path.join(self.images_embeddings_path))
         self.gt_embeddings = os.listdir(os.path.join(self.gt_embeddings_path))
 
-        n_train_images = int(len(self.images_embeddings) * TRAIN_FRACTION)
-        if self.mode == "train":
-            self.images_embeddings = self.images_embeddings[:n_train_images]
-            self.gt_embeddings = self.gt_embeddings[:n_train_images]
-        elif self.mode == "test":
-            self.images_embeddings = self.images_embeddings[n_train_images:]
-            self.gt_embeddings = self.gt_embeddings[n_train_images:]
+        real_images = [image for image in self.images_embeddings if "image" not in image]
+        n_train_images = int(len(real_images) * TRAIN_FRACTION)
+
+        real_gt_images = [image for image in self.gt_embeddings if "image" not in image]
+
+        train_set_images = real_images[:n_train_images]
+        test_set_images = real_images[n_train_images:]
+
+        train_set_gt_images = real_gt_images[:n_train_images]
+        test_set_gt_images = real_gt_images[n_train_images:]
+
+        # add to train set the augmented images
+        for image in self.images_embeddings:
+            if "image" in image:
+                train_set_images.append(image)
+
+        for image in self.gt_embeddings:
+            if "image" in image:
+                train_set_gt_images.append(image)
+
+        self.images_embeddings = train_set_images if self.mode == "train" else test_set_images
+        self.gt_embeddings = train_set_gt_images if self.mode == "train" else test_set_gt_images
+
 
     def __len__(self):
         return len(self.images_embeddings)
@@ -48,12 +66,6 @@ class polyp_dataset(Dataset):
 
         image_embeddings = image_embeddings.mul_(0.18215)
         gt_embeddings = gt_embeddings.mul_(0.18215)
-
-        if self.transform:
-            if random.random() < 0.5:
-                image_embeddings = self.transform(image_embeddings)
-                gt_embeddings = self.transform(gt_embeddings)
-
         return gt_embeddings, image_embeddings
 
 

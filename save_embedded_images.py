@@ -3,6 +3,8 @@ import torch
 import os.path
 from torchvision.transforms import transforms
 from diffusers.models import AutoencoderKL
+import random
+import torchvision.transforms.functional as TF
 
 
 def save_embedded_images(data_path, images_path, gt_path, resize_height=512, resize_width=512):
@@ -69,8 +71,8 @@ def save_embedded_images(data_path, images_path, gt_path, resize_height=512, res
             image_embeddings = vae.encode(image).latent_dist.sample()
             gt_embeddings = vae.encode(gt_single_channel).latent_dist.sample()
 
-        gt_embeddings = gt_embeddings / 0.18125
-        gt = vae.decode(gt_embeddings).sample
+        # gt_embeddings = gt_embeddings / 0.18125
+        # gt = vae.decode(gt_embeddings).sample
 
         # # plot the gt
         # plt.figure()
@@ -101,6 +103,45 @@ def save_embedded_images(data_path, images_path, gt_path, resize_height=512, res
         # plt.imshow(torch.permute(torch.squeeze(image.cpu().detach(), dim=0), (1, 2, 0)))
         # plt.imshow(torch.permute(torch.squeeze(gt.cpu().detach(), dim=0), (1, 2, 0)))
         # plt.show()
+
+#         create augmentations for the images and gt
+        augmentations = ['image_contrast', 'image_brightness', 'image_saturation', 'image_hue_yellow',
+                                      'image_hue_red', 'image_flipping', 'image_rotation']
+        for augmentation in augmentations:
+            if augmentation == 'image_contrast':
+                contrast = random.uniform(0.5, 1.5)
+                image = TF.adjust_contrast(image, contrast)
+            elif augmentation == 'image_brightness':
+                brightness = random.uniform(0.7, 1.5)
+                image = TF.adjust_brightness(image, brightness)
+            elif augmentation == 'image_saturation':
+                saturation = random.uniform(1.1, 1.5)
+                image = TF.adjust_saturation(image, saturation)
+            # make the image more yellow
+            elif augmentation == 'image_hue_yellow':
+                hue = 0.07
+                image = TF.adjust_hue(image, hue)
+            # make the image more red
+            elif augmentation == 'image_hue_red':
+                hue = -0.04
+                image = TF.adjust_hue(image, hue)
+            elif augmentation == 'image_flipping':
+                image = TF.hflip(image)
+                gt_single_channel = TF.hflip(gt_single_channel)
+            elif augmentation == 'image_rotation':
+                angle = random.randint(0, 360)
+                image = TF.rotate(image, angle)
+                gt_single_channel = TF.rotate(gt_single_channel, angle)
+
+            with torch.no_grad():
+                image_embeddings = vae.encode(image).latent_dist.sample()
+                gt_embeddings = vae.encode(gt_single_channel).latent_dist.sample()
+
+            image_output_file = os.path.join(output_image_path, f"{images_list[i]}_{augmentation}.pt")
+            gt_output_file = os.path.join(output_gt_path, f"{gt_list[i]}_{augmentation}.pt")
+
+            torch.save(image_embeddings, image_output_file)
+            torch.save(gt_embeddings, gt_output_file)
 
 
 if __name__ == "__main__":
