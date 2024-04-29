@@ -5,13 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="3103e7da-fe59-4084-b58a-974be54e4744" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/DiT.py" beforeDir="false" afterPath="$PROJECT_DIR$/models/DiT.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/PolypDiT/Loss_PolypDiT_Train Loss/events.out.tfevents.1713960095.LAPTOP-KSC5TNET.23328.1" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/runs/PolypDiT/events.out.tfevents.1713960073.LAPTOP-KSC5TNET.23328.0" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/sample.py" beforeDir="false" afterPath="$PROJECT_DIR$/sample.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/train.py" beforeDir="false" afterPath="$PROJECT_DIR$/train.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
