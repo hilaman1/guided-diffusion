@@ -111,7 +111,7 @@ class Sampler:
 
 
 if __name__ == "__main__":
-    model_name = "PolypDiT_B2_one_channel_no_augmentations_1000epochs"
+    model_name = "PolypDiT_B4_cross_attention_100epochs"
 
     if "PolypDiT_B2" in model_name:
         model = DiT_models['DiT-B/2'](in_channels=4, condition_channels=4, learn_sigma=False)
