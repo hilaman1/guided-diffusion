@@ -10,6 +10,8 @@ from models.DiT import DiT_models
 from diffusers.models import AutoencoderKL
 from polyp_dataset import polyp_dataset
 from torch.utils.tensorboard import SummaryWriter
+from copy import deepcopy
+from collections import OrderedDict
 import torchvision.transforms.functional as TF
 import random
 import argparse
@@ -54,10 +56,8 @@ class Trainer:
             mode="train"
         )
 
-
         self.train_dataloader = DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=False,
                                            sampler=DistributedSampler(self.train_dataset))
-
 
         self.sampler = DDPMScheduler(
             num_train_timesteps=self.num_training_steps,
@@ -67,12 +67,24 @@ class Trainer:
             clip_sample=False
         )
 
-
-
         self.writer = SummaryWriter(f"runs/{self.model_name}")
+
+        self.ema = deepcopy(self.model).to(gpu_id)
+        for param in self.ema.parameters():
+            param.requires_grad = False
 
         self.model.to(gpu_id)
         self.model = DDP(self.model, device_ids=[self.gpu_id], find_unused_parameters=True)
+
+        self.update_ema(self.ema, self.model.module, decay=0)
+        self.ema.eval()
+
+    def update_ema(self, ema_model, model, decay=0.9999):
+        ema_params = OrderedDict(ema_model.named_parameters())
+        model_params = OrderedDict(model.named_parameters())
+
+        for name, param in model_params.items():
+            ema_params[name].mul_(decay).add_(param.data, alpha=1 - decay)
 
     def train_one_epoch(self, epoch, images_list):
         self.model.train()
@@ -109,6 +121,8 @@ class Trainer:
 
             loss.backward()
             self.optimizer.step()
+
+            self.update_ema(self.ema, self.model.module)
 
             total_loss += loss.item()
 
@@ -188,6 +202,7 @@ class Trainer:
         checkpoint_path = os.path.join(os.getcwd(), "saved_models", self.model_name, f"{self.model_name}.pt")
         state = {
             "model": self.model.module.state_dict(),
+            "eme": self.ema.state_dict(),
             "optimizer": self.optimizer.state_dict()
         }
         torch.save(state, checkpoint_path)
