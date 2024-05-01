@@ -223,9 +223,9 @@ def main(rank: int, world_size: int, args):
     guided = True
     load_pretrained_model = args.load_pretrained
 
-    if "PolypDiT_B2" in model_name:
+    if "DiT_B2" in model_name:
         model = DiT_models['DiT-B/2'](in_channels=4, condition_channels=4, learn_sigma=False)
-    if "PolypDiT_B4" in model_name:
+    if "DiT_B4" in model_name:
         model = DiT_models['DiT-B/4'](in_channels=4, condition_channels=4, learn_sigma=False)
     handler = Trainer(model=model,
                       model_name=model_name,
@@ -255,9 +255,9 @@ if __name__ == "__main__":
     assert torch.cuda.is_available(), "Did not find a GPU"
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model-name", type=str, default="PolypDiT_B4_cross_attention")
-    parser.add_argument("--data-path", type=str, default="./data/polyps")
-    parser.add_argument("--epochs", type=int, default=100)
+    parser.add_argument("--model-name", type=str, default="KvasirDiT_B2_cross_attention_with_augmentations")
+    parser.add_argument("--data-path", type=str, default="./data/kvasir-seg")
+    parser.add_argument("--epochs", type=int, default=150)
     parser.add_argument("--batch-size", type=int, default=16)
     parser.add_argument("--load-pretrained", type=bool, default=False)
 
