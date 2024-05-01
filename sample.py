@@ -111,15 +111,15 @@ class Sampler:
 
 
 if __name__ == "__main__":
-    model_name = "PolypDiT_B4_cross_attention_100epochs"
+    model_name = "KvasirDiT_B2_cross_attention_with_augmentations_150epochs"
 
-    if "PolypDiT_B2" in model_name:
+    if "DiT_B2" in model_name:
         model = DiT_models['DiT-B/2'](in_channels=4, condition_channels=4, learn_sigma=False)
-    if "PolypDiT_B4" in model_name:
+    if "DiT_B4" in model_name:
         model = DiT_models['DiT-B/4'](in_channels=4, condition_channels=4, learn_sigma=False)
 
-    data_path = os.path.join(os.getcwd(), "data", "polyps")
-    predictions_path = os.path.join(os.getcwd(), "data", "polyps", "pred")
+    data_path = os.path.join(os.getcwd(), "data", "kvasir-seg")
+    predictions_path = os.path.join(os.getcwd(), "data", "kvasir-seg", "pred")
     beta_start = 10 ** -4
     beta_end = 2 * 10 ** -2
     num_training_steps = 1000

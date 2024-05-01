@@ -108,23 +108,6 @@ def eval_seg(pred, true_mask_p, threshold=(0.1, 0.3, 0.5, 0.7, 0.9)):
             vpred = (pred > th).float()
             vpred_cpu = vpred.cpu()
 
-            # choose green or red channel based on the maximum sum of the channel
-            sum_lst = []
-            for channel in range(vpred_cpu.shape[1]):
-                channel_sum = torch.sum(vpred_cpu[:, channel, :, :])
-                sum_lst.append(channel_sum)
-            max_sum = max(sum_lst)
-            max_sum_idx = sum_lst.index(max_sum)
-            vpred_cpu = vpred_cpu[:, max_sum_idx, :, :]
-
-            sum_lst = []
-            for channel in range(gt_vmask_p.shape[1]):
-                channel_sum = torch.sum(gt_vmask_p[:, channel, :, :])
-                sum_lst.append(channel_sum)
-            max_sum = max(sum_lst)
-            max_sum_idx = sum_lst.index(max_sum)
-            gt_vmask_p = gt_vmask_p[:, max_sum_idx, :, :]
-
             disc_pred = vpred_cpu.numpy().astype('int32')
 
             disc_mask = gt_vmask_p.squeeze(1).cpu().numpy().astype('int32')
@@ -133,28 +116,26 @@ def eval_seg(pred, true_mask_p, threshold=(0.1, 0.3, 0.5, 0.7, 0.9)):
             eiou += iou(disc_pred, disc_mask)
 
             '''dice for torch'''
-            edice += dice_coeff(vpred_cpu, gt_vmask_p).item()
+            edice += dice_coeff(vpred_cpu, gt_vmask_p.cpu()).item()
 
         return eiou / len(threshold), edice / len(threshold)
 
 
 def main():
-    data_path = r"D:\Hila\guided-diffusion\datasets\polyps"
     argParser = argparse.ArgumentParser()
-    argParser.add_argument("--model_name", type=str, default="PolypDiT_B2")
-    argParser.add_argument("--pred_path", type=str, default=r"D:\Hila\guided-diffusion\datasets\polyps\pred")
-    argParser.add_argument("--data_path", type=str, default=r"D:\Hila\guided-diffusion\datasets\polyps")
-    argParser.add_argument("--num_training_steps", type=str, default="6000")
+    argParser.add_argument("--model_name", type=str, default="PolypDiT_B2_cross_attention_with_augmentations_150epochs")
+    argParser.add_argument("--pred_path", type=str, default=r"D:\Hila\guided-diffusion\data\polyps\pred")
+    argParser.add_argument("--data_path", type=str, default=r"D:\Hila\guided-diffusion\data\polyps")
+    argParser.add_argument("--num_training_steps", type=str, default="1000")
     args = argParser.parse_args()
     num_training_steps = args.num_training_steps
 
     mix_res = (0, 0)
     num = 0
     model_pred_path = os.path.join(f"{args.pred_path}", f"{args.model_name}")
-    model_pred_path = os.path.join(model_pred_path, f"num_training_steps_{args.num_training_steps}")
 
     test_dataset = polyp_dataset(
-        data_path=data_path,
+        data_path=args.data_path,
         mode="test"
     )
     test_dataloader = DataLoader(test_dataset, batch_size=1, shuffle=False)
@@ -171,44 +152,23 @@ def main():
         gt = gt / 0.18125
         gt = vae.decode(gt).sample
 
-        gt = torch.permute(torch.squeeze(gt, dim=0), (0,2,1)).cpu().detach()
-        pred = torch.permute(torch.from_numpy(np.copy(pred)), (2,1,0)).float()
+        # make pred dimensions same as gt to fit eval_seg
+        pred = torch.from_numpy(np.copy(pred)).to(device)
+        pred = torch.unsqueeze(pred, dim=0).to(device)
+        pred = torch.cat((pred, pred, pred), dim=0).to(device)
+        pred = torch.unsqueeze(pred, dim=0).to(device)
 
-        gt = torch.unsqueeze(gt, dim=0)
-        pred = torch.unsqueeze(pred, dim=0)
-
-
-        # # make the gt a binary image with one channel
-        # gt = torch.where(gt > 0.5, 1, 0)
-        # # calculate the sum of each channel in the gt
-        # sum_lst = []
-        # for channel in range(gt.shape[0]):
-        #     channel_sum = torch.sum(gt[channel])
-        #     sum_lst.append(channel_sum)
-        # # get the channel with the maximum sum
-        # max_sum = max(sum_lst)
-        # max_sum_idx = sum_lst.index(max_sum)
-        # gt = gt[max_sum_idx]
-        #
-        # # make the pred a binary image with one channel
-        # pred = torch.where(pred > 0.5, 1, 0)
-        # # calculate the sum of each channel in the pred
-        # sum_lst = []
-        # for channel in range(pred.shape[0]):
-        #     channel_sum = torch.sum(pred[channel])
-        #     sum_lst.append(channel_sum)
-        # # get the channel with the maximum sum
-        # max_sum = max(sum_lst)
-        # max_sum_idx = sum_lst.index(max_sum)
-        # pred = pred[max_sum_idx]
-
-        # if args.debug:
-        #     vutils.save_image(gt, fp = os.path.join('./results/' + str(ind)+'gt.jpg'), nrow = 1, padding = 10)
         temp = eval_seg(pred, gt)
         mix_res = tuple([sum(a) for a in zip(mix_res, temp)])
     iou, dice = tuple([a / num for a in mix_res])
     print('iou is', iou)
     print('dice is', dice)
+#     write a txt
+    path = os.path.join(os.getcwd(), "saved_models", args.model_name, "results.txt")
+    with open(path, "w") as f:
+        f.write(f"iou is {iou}\n")
+        f.write(f"dice is {dice}\n")
+    f.close()
 
 
 if __name__ == "__main__":
