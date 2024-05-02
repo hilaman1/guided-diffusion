@@ -123,9 +123,9 @@ def eval_seg(pred, true_mask_p, threshold=(0.1, 0.3, 0.5, 0.7, 0.9)):
 
 def main():
     argParser = argparse.ArgumentParser()
-    argParser.add_argument("--model_name", type=str, default="PolypDiT_B2_cross_attention_with_augmentations_150epochs")
-    argParser.add_argument("--pred_path", type=str, default=r"D:\Hila\guided-diffusion\data\polyps\pred")
-    argParser.add_argument("--data_path", type=str, default=r"D:\Hila\guided-diffusion\data\polyps")
+    argParser.add_argument("--model_name", type=str, default="KvasirDiT_B2_cross_attention_with_augmentations_150epochs")
+    argParser.add_argument("--pred_path", type=str, default=os.path.join(os.getcwd(), "data", "kvasir-seg", "pred"))
+    argParser.add_argument("--data_path", type=str, default=os.path.join(os.getcwd(), "data", "kvasir-seg"))
     argParser.add_argument("--num_training_steps", type=str, default="1000")
     args = argParser.parse_args()
     num_training_steps = args.num_training_steps
