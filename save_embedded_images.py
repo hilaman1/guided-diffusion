@@ -48,19 +48,26 @@ def save_embedded_images(data_path, images_path, gt_path, resize_height=512, res
         image = torch.unsqueeze(image, dim=0).to(device)
         gt = torch.unsqueeze(gt, dim=0).to(device)
 
-        # get the channel with the maximum sum in gt
-        sum_lst = []
-        for channel in range(gt.shape[1]):
-            channel_sum = torch.sum(gt[0, channel])
-            sum_lst.append(channel_sum)
-        max_sum = max(sum_lst)
-        max_sum_idx = sum_lst.index(max_sum)
+        # # check if all channels in gt are the same
+        # if torch.all(gt[0, 0, :, :] == gt[0, 1, :, :]) and torch.all(gt[0, 1, :, :] == gt[0, 2, :, :]):
+        #     continue
 
-        # get the values in the channel with the maximum sum
-        max_sum_channel = torch.squeeze(gt, dim=0)[max_sum_idx, :,:]
-        max_sum_channel = torch.unsqueeze(max_sum_channel, dim=0)
-        gt_single_channel = torch.cat((max_sum_channel, max_sum_channel, max_sum_channel), dim=0)
-        gt_single_channel = torch.unsqueeze(gt_single_channel, dim=0)
+        if 'polyp' in data_path:
+            # make the gt a single channel image (multipiled by 3 channels to be compatible with the vae input
+            # dimensions)
+            sum_lst = []
+            for channel in range(gt.shape[1]):
+                channel_sum = torch.sum(gt[0, channel])
+                sum_lst.append(channel_sum)
+            max_sum = max(sum_lst)
+            max_sum_idx = sum_lst.index(max_sum)
+
+            max_sum_channel = torch.squeeze(gt, dim=0)[max_sum_idx, :,:]
+            max_sum_channel = torch.unsqueeze(max_sum_channel, dim=0)
+            gt_single_channel = torch.cat((max_sum_channel, max_sum_channel, max_sum_channel), dim=0)
+            gt_single_channel = torch.unsqueeze(gt_single_channel, dim=0)
+        else:
+            gt_single_channel = gt
 
         # # plot the single channel gt
         # plt.figure()
@@ -70,9 +77,6 @@ def save_embedded_images(data_path, images_path, gt_path, resize_height=512, res
         with torch.no_grad():
             image_embeddings = vae.encode(image).latent_dist.sample()
             gt_embeddings = vae.encode(gt_single_channel).latent_dist.sample()
-
-        # gt_embeddings = gt_embeddings / 0.18125
-        # gt = vae.decode(gt_embeddings).sample
 
         # # plot the gt
         # plt.figure()
@@ -145,9 +149,9 @@ def save_embedded_images(data_path, images_path, gt_path, resize_height=512, res
 
 
 if __name__ == "__main__":
-    data_path = os.path.join(os.getcwd(), "data", "polyps")
-    images_path = os.path.join(data_path, "train", "train")
-    gt_path = os.path.join(data_path, "train_gt", "train_gt")
+    data_path = os.path.join(os.getcwd(), "data", "kvasir-seg")
+    images_path = os.path.join(data_path, "images")
+    gt_path = os.path.join(data_path, "masks")
     resize_height = 256
     resize_width = 256
 

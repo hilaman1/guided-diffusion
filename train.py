@@ -12,8 +12,6 @@ from polyp_dataset import polyp_dataset
 from torch.utils.tensorboard import SummaryWriter
 from copy import deepcopy
 from collections import OrderedDict
-import torchvision.transforms.functional as TF
-import random
 import argparse
 from utils import *
 
@@ -238,9 +236,9 @@ def main(rank: int, world_size: int, args):
     guided = True
     load_pretrained_model = args.load_pretrained
 
-    if "PolypDiT_B2" in model_name:
+    if "DiT_B2" in model_name:
         model = DiT_models['DiT-B/2'](in_channels=4, condition_channels=4, learn_sigma=False)
-    if "PolypDiT_B4" in model_name:
+    if "DiT_B4" in model_name:
         model = DiT_models['DiT-B/4'](in_channels=4, condition_channels=4, learn_sigma=False)
     handler = Trainer(model=model,
                       model_name=model_name,
@@ -270,9 +268,9 @@ if __name__ == "__main__":
     assert torch.cuda.is_available(), "Did not find a GPU"
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model-name", type=str, default="PolypDiT_B2_one_channel_with_augmentations")
-    parser.add_argument("--data-path", type=str, default="./data/polyps")
-    parser.add_argument("--epochs", type=int, default=1000)
+    parser.add_argument("--model-name", type=str, default="KvasirDiT_B2_with_augmentations")
+    parser.add_argument("--data-path", type=str, default="./data/kvasir-seg")
+    parser.add_argument("--epochs", type=int, default=150)
     parser.add_argument("--batch-size", type=int, default=16)
     parser.add_argument("--load-pretrained", type=bool, default=False)
 
