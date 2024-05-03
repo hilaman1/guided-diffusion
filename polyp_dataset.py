@@ -134,9 +134,14 @@ class polyp_dataset(Dataset):
             image = TF.rotate(image, angle)
             gt = TF.rotate(gt, angle)
 
+        image = torch.unsqueeze(image, dim=0).to(self.device)
+        gt = torch.unsqueeze(gt, dim=0).to(self.device)
         with torch.no_grad():
             image = self.vae.encode(image).latent_dist.sample()
             gt = self.vae.encode(gt).latent_dist.sample()
+
+        image = torch.squeeze(image, dim=0).to(self.device)
+        gt = torch.squeeze(gt, dim=0).to(self.device)
 
         image = image.mul_(0.18215)
         gt = gt.mul_(0.18215)
