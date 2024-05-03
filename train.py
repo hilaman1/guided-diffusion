@@ -12,7 +12,10 @@ from polyp_dataset import polyp_dataset
 from torch.utils.tensorboard import SummaryWriter
 from copy import deepcopy
 from collections import OrderedDict
+import random
+import torchvision.transforms.functional as TF
 import argparse
+import torchvision.transforms as transforms
 from utils import *
 
 
@@ -55,7 +58,7 @@ class Trainer:
         )
 
         self.train_dataloader = DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=False,
-                                           sampler=DistributedSampler(self.train_dataset))
+                                           sampler=DistributedSampler(self.train_dataset, shuffle=True))
 
         self.sampler = DDPMScheduler(
             num_train_timesteps=self.num_training_steps,
@@ -101,6 +104,19 @@ class Trainer:
             gt = gt.to(self.gpu_id)
             image = image.to(self.gpu_id)
 
+            if batch_idx == 0:
+                plt.figure()
+                plt.imshow(torch.permute(torch.squeeze(gt[0,:,:,:].cpu(), dim=0), (1, 2, 0)))
+                plt.show()
+                plt.close()
+
+            with torch.no_grad():
+                image = self.vae.encode(image).latent_dist.sample()
+                gt = self.vae.encode(gt).latent_dist.sample()
+
+            image = image.mul_(0.18215)
+            gt = gt.mul_(0.18215)
+
             timestep = torch.randint(0, self.num_training_steps, (image.size(0), )).to(self.gpu_id)
             noise = torch.FloatTensor(torch.randn(gt.shape, dtype=torch.float32)).to(self.gpu_id)
             noisy_gt = self.sampler.add_noise(gt, noise, timestep)
@@ -126,48 +142,86 @@ class Trainer:
 
         return total_loss / len(dataloader), images_list
 
-    def create_GIF(vae, images_list, path, device):
-        print("Creating GIF")
-        directory = os.path.join(os.getcwd(), "GIF images")
-        if os.path.exists(directory):
-            delete_dir(directory)
-            os.mkdir(directory)
-        else:
-            os.mkdir(directory)
+    def train_one_epoch_with_augmentations(self, epoch, images_list):
+        self.model.train()
 
-        images = []
-        for i in tqdm(range(len(images_list))):
-            image_path = os.path.join(os.getcwd(), "GIF images", f"{i}.png")
+        dataloader = self.train_dataloader
+        dataloader.sampler.set_epoch(epoch)
 
-            noisy_image = images_list[i] / 0.18125
-            prediction = vae.decode(noisy_image.to(device)).sample
+        print_every = len(dataloader) // 10
+        total_loss = 0
 
-            prediction = prediction[0]
-            prediction = torch.sqrt(prediction[0, :, :] ** 2 + prediction[1, :, :] ** 2 + prediction[2, :, :] ** 2)
-            prediction[prediction < 0.5] = 0
-            prediction[prediction >= 0.5] = 1
-            prediction = prediction.cpu().detach()
+        for batch_idx, (gt, image) in enumerate(dataloader):
+            if batch_idx % print_every == 0 and batch_idx != 0:
+                average_loss = total_loss / batch_idx
+                # print(f"| GPU[{self.gpu_id}] | Epoch {epoch} | Loss {average_loss:.5f} |")
 
-            plt.figure()
-            plt.imshow(images_list[i])
-            plt.savefig(image_path)
-            plt.close()
+            gt = gt.to(self.gpu_id)
+            image = image.to(self.gpu_id)
 
-            images.append(imageio.imread(image_path))
+            # if batch_idx == 0:
+            #     plt.figure()
+            #     plt.imshow(torch.permute(torch.squeeze(gt[0,:,:,:].cpu(), dim=0), (1, 2, 0)))
+            #     plt.show()
+            #     plt.close()
 
-        imageio.mimsave(path, images, duration=1)
-        print(f"Saved GIF to {path}")
-        delete_dir(directory)
+            # add augmentations
+            if random.random() < 0.5:
+                contrast = random.uniform(0.5, 1.5)
+                image = TF.adjust_contrast(image, contrast)
+            if random.random() < 0.5:
+                brightness = random.uniform(0.7, 1.5)
+                image = TF.adjust_brightness(image, brightness)
+            if random.random() < 0.5:
+                saturation = random.uniform(1.1, 1.5)
+                image = TF.adjust_saturation(image, saturation)
+            if random.random() < 0.5:
+                # make the image more yellow
+                hue = 0.07
+                image = TF.adjust_hue(image, hue)
+            if random.random() < 0.5:
+                # make the image more red
+                hue = -0.04
+                image = TF.adjust_hue(image, hue)
+            if random.random() < 0.5:
+                image = TF.hflip(image)
+                gt = TF.hflip(gt)
+            if random.random() < 0.5:
+                angle = random.randint(0, 360)
+                image = TF.rotate(image, angle)
+                gt = TF.rotate(gt, angle)
 
-    def delete_dir(path):
-        if os.path.exists(path):
-            file_list = os.listdir(path)
-            for file_name in file_list:
-                file_path = os.path.join(path, file_name)
-                if os.path.isfile(file_path):
-                    os.remove(file_path)
-        os.rmdir(path)
+            with torch.no_grad():
+                image = self.vae.encode(image).latent_dist.sample()
+                gt = self.vae.encode(gt).latent_dist.sample()
 
+            image = image.mul_(0.18215)
+            gt = gt.mul_(0.18215)
+
+            timestep = torch.randint(0, self.num_training_steps, (image.size(0), )).to(self.gpu_id)
+            noise = torch.FloatTensor(torch.randn(gt.shape, dtype=torch.float32)).to(self.gpu_id)
+            noisy_gt = self.sampler.add_noise(gt, noise, timestep)
+
+            self.optimizer.zero_grad()
+
+            if self.apply_cfg:
+                image = image * create_cfg_mask(image.shape, self.cfg_prob, self.gpu_id)
+
+            noise_prediction = self.model(noisy_gt.to(self.gpu_id), timestep, image.to(self.gpu_id))
+            if batch_idx == 0:
+                images_list.append(torch.unsqueeze(noise_prediction[0], dim=0))
+
+
+            loss = self.criterion(noise_prediction.to(self.gpu_id), noise)
+
+            loss.backward()
+            self.optimizer.step()
+
+            self.update_ema(self.ema, self.model.module)
+
+            total_loss += loss.item()
+
+        return total_loss / len(dataloader), images_list
 
     def train(self):
         print(f"Start Training {self.model_name}...")
@@ -178,10 +232,24 @@ class Trainer:
             os.mkdir(os.path.join(os.getcwd(), "saved_models", self.model_name))
 
         images_list = []
+        # for epoch in range(self.epochs):
+        #     print("-" * 40)
+        #
+        #     training_avg_loss, images_list = self.train_one_epoch(epoch, images_list)
+        #
+        #     if epoch == 0:
+        #         print(f"| GPU[{self.gpu_id}] | initiative Loss {training_avg_loss:.5f} |")
+        #     print("-" * 40)
+        #     print(f"| End of epoch {epoch} | Loss {training_avg_loss:.5f} |")
+        #
+        #     self.writer.add_scalars(f"Loss/{self.model_name}", {"Train Loss": training_avg_loss}, epoch)
+        #     if self.gpu_id == 0:
+        #         self.save_model()
+
         for epoch in range(self.epochs):
             print("-" * 40)
 
-            training_avg_loss, images_list = self.train_one_epoch(epoch, images_list)
+            training_avg_loss, images_list = self.train_one_epoch_with_augmentations(epoch, images_list)
 
             if epoch == 0:
                 print(f"| GPU[{self.gpu_id}] | initiative Loss {training_avg_loss:.5f} |")
@@ -268,9 +336,9 @@ if __name__ == "__main__":
     assert torch.cuda.is_available(), "Did not find a GPU"
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model-name", type=str, default="KvasirDiT_B2_with_augmentations")
+    parser.add_argument("--model-name", type=str, default="KvasirDiT_B2_with_augmentations_new")
     parser.add_argument("--data-path", type=str, default="./data/kvasir-seg")
-    parser.add_argument("--epochs", type=int, default=150)
+    parser.add_argument("--epochs", type=int, default=1200)
     parser.add_argument("--batch-size", type=int, default=16)
     parser.add_argument("--load-pretrained", type=bool, default=False)
 
