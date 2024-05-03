@@ -1,4 +1,3 @@
-import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.multiprocessing as mp
@@ -12,10 +11,7 @@ from polyp_dataset import polyp_dataset
 from torch.utils.tensorboard import SummaryWriter
 from copy import deepcopy
 from collections import OrderedDict
-import random
-import torchvision.transforms.functional as TF
 import argparse
-import torchvision.transforms as transforms
 from utils import *
 
 
@@ -193,6 +189,7 @@ def main(rank: int, world_size: int, args):
     guided = True
     load_pretrained_model = args.load_pretrained
 
+    model = None
     if "DiT_B2" in model_name:
         model = DiT_models['DiT-B/2'](in_channels=4, condition_channels=4, learn_sigma=False)
     if "DiT_B4" in model_name:
