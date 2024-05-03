@@ -108,7 +108,6 @@ class DiTBlock(nn.Module):
         self.attn = Attention(hidden_size, num_heads=num_heads, qkv_bias=True, **block_kwargs)
         self.norm2 = nn.LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
         self.norm3 = nn.LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
-        self.norm4 = nn.LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
 
         mlp_hidden_dim = int(hidden_size * mlp_ratio)
         approx_gelu = lambda: nn.GELU(approximate="tanh")
@@ -150,40 +149,6 @@ class FinalLayer(nn.Module):
         return x
 
 
-class DoubleConv(nn.Module):
-    def __init__(self, in_channels, out_channels, input_size=32):
-        super().__init__()
-        self.model = nn.Sequential(
-            nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=1, padding=1),
-            nn.LayerNorm([out_channels, input_size, input_size], elementwise_affine=False, eps=1e-6),
-            nn.SiLU(),
-            nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1),
-            nn.LayerNorm([out_channels, input_size, input_size], elementwise_affine=False, eps=1e-6),
-            nn.SiLU(),
-        )
-
-    def forward(self, x):
-        return self.model(x)
-
-
-class Patchify(nn.Module):
-    def __init__(self, patch_size, in_channles, out_channels):
-        super().__init__()
-        self.patch_size = patch_size
-        self.model = nn.Sequential(
-            nn.Linear(in_channles, out_channels),
-            nn.SiLU(),
-            nn.Linear(out_channels, out_channels)
-        )
-
-    def forward(self, x):
-        assert x.size(2) % self.patch_size == 0, "Height must be divided by patch size."
-        assert x.size(3) % self.patch_size == 0, "Width must be divided by patch size."
-
-        x = x.view(x.size(0), x.size(2) * x.size(3) // (self.patch_size ** 2), x.size(1))
-        x = self.model(x)
-        return x
-
 class DiT(nn.Module):
     """
     Diffusion model with a Transformer backbone.
@@ -213,7 +178,6 @@ class DiT(nn.Module):
         self.x_embedder = PatchEmbed(input_size, patch_size, in_channels, hidden_size, bias=True)
         self.t_embedder = TimestepEmbedder(hidden_size)
         self.y_embedder = PatchEmbed(input_size, patch_size, condition_channels, hidden_size, bias=True)
-        self.norm = nn.LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
 
         num_patches = self.x_embedder.num_patches
         # Will use fixed sin-cos embedding:
