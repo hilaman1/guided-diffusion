@@ -28,7 +28,8 @@ class Sampler:
 
         test_dataset = polyp_dataset(
             data_path=data_path,
-            mode="test"
+            mode="test",
+            device=self.device
         )
         self.test_dataloader = DataLoader(test_dataset, batch_size=1, shuffle=False)
 
@@ -113,6 +114,7 @@ class Sampler:
 if __name__ == "__main__":
     model_name = "KvasirDiT_B2_with_augmentations_150epochs"
 
+    model = None
     if "DiT_B2" in model_name:
         model = DiT_models['DiT-B/2'](in_channels=4, condition_channels=4, learn_sigma=False)
     if "DiT_B4" in model_name:
