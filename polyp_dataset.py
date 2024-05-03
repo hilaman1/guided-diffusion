@@ -107,32 +107,32 @@ class polyp_dataset(Dataset):
             max_sum_channel = torch.squeeze(gt, dim=0)[max_sum_idx, :, :]
             max_sum_channel = torch.unsqueeze(max_sum_channel, dim=0)
             gt = torch.cat((max_sum_channel, max_sum_channel, max_sum_channel), dim=0)
-
-        # add augmentations
-        if random.random() < 0.5:
-            contrast = random.uniform(0.5, 1.5)
-            image = TF.adjust_contrast(image, contrast)
-        if random.random() < 0.5:
-            brightness = random.uniform(0.7, 1.5)
-            image = TF.adjust_brightness(image, brightness)
-        if random.random() < 0.5:
-            saturation = random.uniform(1.1, 1.5)
-            image = TF.adjust_saturation(image, saturation)
-        if random.random() < 0.5:
-            # make the image more yellow
-            hue = 0.07
-            image = TF.adjust_hue(image, hue)
-        if random.random() < 0.5:
-            # make the image more red
-            hue = -0.04
-            image = TF.adjust_hue(image, hue)
-        if random.random() < 0.5:
-            image = TF.hflip(image)
-            gt = TF.hflip(gt)
-        if random.random() < 0.5:
-            angle = random.randint(0, 360)
-            image = TF.rotate(image, angle)
-            gt = TF.rotate(gt, angle)
+        if self.mode == "train":
+            # add augmentations
+            if random.random() < 0.5:
+                contrast = random.uniform(0.5, 1.5)
+                image = TF.adjust_contrast(image, contrast)
+            if random.random() < 0.5:
+                brightness = random.uniform(0.7, 1.5)
+                image = TF.adjust_brightness(image, brightness)
+            if random.random() < 0.5:
+                saturation = random.uniform(1.1, 1.5)
+                image = TF.adjust_saturation(image, saturation)
+            if random.random() < 0.5:
+                # make the image more yellow
+                hue = 0.07
+                image = TF.adjust_hue(image, hue)
+            if random.random() < 0.5:
+                # make the image more red
+                hue = -0.04
+                image = TF.adjust_hue(image, hue)
+            if random.random() < 0.5:
+                image = TF.hflip(image)
+                gt = TF.hflip(gt)
+            if random.random() < 0.5:
+                angle = random.randint(0, 360)
+                image = TF.rotate(image, angle)
+                gt = TF.rotate(gt, angle)
 
         image = torch.unsqueeze(image, dim=0).to(self.device)
         gt = torch.unsqueeze(gt, dim=0).to(self.device)
