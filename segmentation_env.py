@@ -116,20 +116,20 @@ def eval_seg(pred, true_mask_p, threshold=(0.1, 0.3, 0.5, 0.7, 0.9)):
 
 def main():
     argParser = argparse.ArgumentParser()
-    argParser.add_argument("--model_name", type=str, default="KvasirDiT_B2_with_augmentations_150epochs")
-    argParser.add_argument("--pred_path", type=str, default=os.path.join(os.getcwd(), "data", "c", "pred"))
+    argParser.add_argument("--model_name", type=str, default="KvasirDiT_B2_with_augmentations_new_1200epochs")
+    argParser.add_argument("--pred_path", type=str, default=os.path.join(os.getcwd(), "data", "kvasir-seg", "pred"))
     argParser.add_argument("--data_path", type=str, default=os.path.join(os.getcwd(), "data", "kvasir-seg"))
-    argParser.add_argument("--num_training_steps", type=str, default="6000")
     args = argParser.parse_args()
-    num_training_steps = args.num_training_steps
 
     mix_res = (0, 0)
     num = 0
     model_pred_path = os.path.join(f"{args.pred_path}", f"{args.model_name}")
+    device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
     test_dataset = polyp_dataset(
         data_path=args.data_path,
-        mode="test"
+        mode="test",
+        device=device
     )
     test_dataloader = DataLoader(test_dataset, batch_size=1, shuffle=False)
     data_iter = iter(test_dataloader)
@@ -140,7 +140,6 @@ def main():
         num += 1
         curr_prediction_path = os.path.join(model_pred_path, f"pred_{i + 1}.png")
         pred = plt.imread(curr_prediction_path)
-        device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
         vae = AutoencoderKL.from_pretrained(f"stabilityai/sd-vae-ft-ema").to(device)
         gt = gt / 0.18125
         gt = vae.decode(gt).sample

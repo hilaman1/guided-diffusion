@@ -13,7 +13,7 @@ from torchvision import transforms as transforms
 TRAIN_FRACTION = 0.8
 
 class polyp_dataset(Dataset):
-    def __init__(self, data_path, mode, device):
+    def __init__(self, data_path, mode, device=None):
         super().__init__()
         assert mode in ["train", "test"], "Mode must be train/test"
         self.data_path = data_path
@@ -108,32 +108,45 @@ class polyp_dataset(Dataset):
             max_sum_channel = torch.unsqueeze(max_sum_channel, dim=0)
             gt = torch.cat((max_sum_channel, max_sum_channel, max_sum_channel), dim=0)
         if self.mode == "train":
-            # add augmentations
+            # whether to augment the image or not
             if random.random() < 0.5:
-                contrast = random.uniform(0.5, 1.5)
-                image = TF.adjust_contrast(image, contrast)
-            if random.random() < 0.5:
-                brightness = random.uniform(0.7, 1.5)
-                image = TF.adjust_brightness(image, brightness)
-            if random.random() < 0.5:
-                saturation = random.uniform(1.1, 1.5)
-                image = TF.adjust_saturation(image, saturation)
-            if random.random() < 0.5:
-                # make the image more yellow
-                hue = 0.07
-                image = TF.adjust_hue(image, hue)
-            if random.random() < 0.5:
-                # make the image more red
-                hue = -0.04
-                image = TF.adjust_hue(image, hue)
-            if random.random() < 0.5:
-                image = TF.hflip(image)
-                gt = TF.hflip(gt)
-            if random.random() < 0.5:
-                angle = random.randint(0, 360)
-                image = TF.rotate(image, angle)
-                gt = TF.rotate(gt, angle)
-
+                # add augmentations
+                if random.random() < 0.5:
+                    contrast_lst = [0.5, 1.5]
+                    # choose from the contrast list
+                    rand_idx = random.randint(0, len(contrast_lst) - 1)
+                    contrast = contrast_lst[rand_idx]
+                    image = TF.adjust_contrast(image, contrast)
+                if random.random() < 0.5:
+                    brightness_lst = [0.7, 0.8, 1.2, 1.5]
+                    # choose from the brightness list
+                    rand_idx = random.randint(0, len(brightness_lst) - 1)
+                    brightness = brightness_lst[rand_idx]
+                    image = TF.adjust_brightness(image, brightness)
+                if random.random() < 0.5:
+                    saturation_lst = [0.5, 0.7, 1.5, 1.6]
+                    # choose from the saturation list
+                    rand_idx = random.randint(0, len(saturation_lst) - 1)
+                    saturation = saturation_lst[rand_idx]
+                    image = TF.adjust_saturation(image, saturation)
+                if random.random() < 0.5:
+                    # make the image more yellow
+                    hue = 0.07
+                    image = TF.adjust_hue(image, hue)
+                if random.random() < 0.5:
+                    # make the image more red
+                    hue = -0.04
+                    image = TF.adjust_hue(image, hue)
+                if random.random() < 0.5:
+                    image = TF.hflip(image)
+                    gt = TF.hflip(gt)
+                if random.random() < 0.5:
+                    angle_lst = [90, 180, 270]
+                    # choose from the angle list
+                    rand_idx = random.randint(0, len(angle_lst) - 1)
+                    angle = angle_lst[rand_idx]
+                    image = TF.rotate(image, angle)
+                    gt = TF.rotate(gt, angle)
         image = torch.unsqueeze(image, dim=0).to(self.device)
         gt = torch.unsqueeze(gt, dim=0).to(self.device)
         with torch.no_grad():
@@ -159,6 +172,10 @@ if __name__ == "__main__":
             mode="train",
             device=device
         )
+        dataloader = DataLoader(dataset, batch_size=1, shuffle=False)
+        for i in range(len(dataloader)):
+            gt, image = next(iter(dataloader))
+            print(f"GT shape: {gt.shape}, Image shape: {image.shape}")
         dataset.create_train_images()
         dataset.create_test_images()
         print(f"Created train and test images for {dataset}")
