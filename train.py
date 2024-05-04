@@ -231,15 +231,15 @@ if __name__ == "__main__":
     assert torch.cuda.is_available(), "Did not find a GPU"
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model-name", type=str, default="KvasirDiT_B2_with_0.5prob_augmentations")
+    parser.add_argument("--model-name", type=str, default="KvasirDiT_B2_with_8augmentations")
     parser.add_argument("--data-path", type=str, default="./data/kvasir-seg")
-    parser.add_argument("--epochs", type=int, default=1200)
+    parser.add_argument("--epochs", type=int, default=150)
     parser.add_argument("--batch-size", type=int, default=16)
     parser.add_argument("--load-pretrained", type=bool, default=False)
-    parser.add_argument("--cross-model", type=bool, default=True)
+    parser.add_argument("--cross-model", type=bool, default=False)
 
     args = parser.parse_args()
-    args.model_name = f"{args.model_name}_{'DiT_cross' if args.cross_model else 'DiT'}_{args.epochs}epochs"
+    args.model_name = f"{args.model_name}_{'cross' if args.cross_model else ''}_{args.epochs}epochs"
 
     world_size = torch.cuda.device_count()
     mp.spawn(main, args=(world_size, args,), nprocs=world_size)

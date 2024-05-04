@@ -20,19 +20,19 @@ class polyp_dataset(Dataset):
         self.mode = mode
         self.device = device
         if self.mode == "train":
-            self.images_folder_path = os.path.join(self.data_path, "train_images")
-            self.gts_folder_path = os.path.join(self.data_path, "train_gt_images")
-        else:
-            self.images_folder_path = os.path.join(self.data_path, "test_images")
-            self.gts_folder_path = os.path.join(self.data_path, "test_gt_images")
-        if not os.path.exists(self.images_folder_path):
-            print("Creating test and train images...")
-            self.create_train_images()
-            self.create_test_images()
-            print("Saved test and train images successfully")
+            self.images_embeddings_path = os.path.join(self.data_path, "train_embeddings", "train_embeddings")
+            self.gt_embeddings_path = os.path.join(self.data_path, "train_gt_embeddings", "train_gt_embeddings")
+            self.images_embeddings = os.listdir(os.path.join(self.images_embeddings_path))
+            self.gt_embeddings = os.listdir(os.path.join(self.gt_embeddings_path))
 
-        self.images_path = os.listdir(self.images_folder_path)
-        self.gts_path = os.listdir(self.gts_folder_path)
+        # if not os.path.exists(self.images_folder_path):
+        #     print("Creating test and train images...")
+        #     self.create_train_images()
+        #     self.create_test_images()
+        #     print("Saved test and train images successfully")
+        #
+        # self.images_path = os.listdir(self.images_folder_path)
+        # self.gts_path = os.listdir(self.gts_folder_path)
 
         self.vae = AutoencoderKL.from_pretrained(f"stabilityai/sd-vae-ft-ema").to(self.device)
     def create_train_images(self):
@@ -78,94 +78,22 @@ class polyp_dataset(Dataset):
             cv2.imwrite(os.path.join(self.data_path, "test_gt_images", self.gts_path[i]), gt)
 
     def __len__(self):
-        return len(self.images_path)
+        return len(self.images_embeddings)
 
     def __getitem__(self, idx):
 
-        image_path = self.images_path[idx]
-        gt_path = self.gts_path[idx]
+        image_embeddings_path = self.images_embeddings[idx]
+        gt_embeddings_path = self.gt_embeddings[idx]
 
-        image = plt.imread(str(os.path.join(self.images_folder_path, image_path)))
-        gt = plt.imread(str(os.path.join(self.gts_folder_path, gt_path)))
+        image_embeddings = torch.load(str(os.path.join(self.images_embeddings_path, image_embeddings_path)))
+        gt_embeddings = torch.load(str(os.path.join(self.gt_embeddings_path, gt_embeddings_path)))
 
-        transform = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Resize((256, 256), antialias=True)
-        ])
+        image_embeddings = torch.squeeze(image_embeddings, dim=0)
+        gt_embeddings = torch.squeeze(gt_embeddings, dim=0)
 
-        image = transform(np.copy(image))
-        gt = transform(np.copy(gt))
-
-        image = image.to(self.device)
-        gt = gt.to(self.device)
-
-        if 'polyp' in self.data_path:
-            # make the gt a single channel image (multiplied by 3 channels to be compatible with the vae input
-            # dimensions)
-            gt = torch.unsqueeze(gt, dim=0)
-            sum_lst = []
-            for channel in range(gt.shape[1]):
-                channel_sum = torch.sum(gt[0, channel])
-                sum_lst.append(channel_sum)
-            max_sum = max(sum_lst)
-            max_sum_idx = sum_lst.index(max_sum)
-
-            max_sum_channel = torch.squeeze(gt, dim=0)[max_sum_idx, :, :]
-            max_sum_channel = torch.unsqueeze(max_sum_channel, dim=0)
-            gt = torch.cat((max_sum_channel, max_sum_channel, max_sum_channel), dim=0)
-        if self.mode == "train":
-            # whether to augment the image or not
-            if random.random() < 0.5:
-                # add augmentations
-                if random.random() < 0.5:
-                    contrast_lst = [0.5, 1.5]
-                    # choose from the contrast list
-                    rand_idx = random.randint(0, len(contrast_lst) - 1)
-                    contrast = contrast_lst[rand_idx]
-                    image = TF.adjust_contrast(image, contrast)
-                if random.random() < 0.5:
-                    brightness_lst = [0.7, 0.8, 1.2, 1.5]
-                    # choose from the brightness list
-                    rand_idx = random.randint(0, len(brightness_lst) - 1)
-                    brightness = brightness_lst[rand_idx]
-                    image = TF.adjust_brightness(image, brightness)
-                if random.random() < 0.5:
-                    saturation_lst = [0.5, 0.7, 1.5, 1.6]
-                    # choose from the saturation list
-                    rand_idx = random.randint(0, len(saturation_lst) - 1)
-                    saturation = saturation_lst[rand_idx]
-                    image = TF.adjust_saturation(image, saturation)
-                if random.random() < 0.5:
-                    # make the image more yellow
-                    hue = 0.07
-                    image = TF.adjust_hue(image, hue)
-                if random.random() < 0.5:
-                    # make the image more red
-                    hue = -0.04
-                    image = TF.adjust_hue(image, hue)
-                if random.random() < 0.5:
-                    image = TF.hflip(image)
-                    gt = TF.hflip(gt)
-                if random.random() < 0.5:
-                    angle_lst = [90, 180, 270]
-                    # choose from the angle list
-                    rand_idx = random.randint(0, len(angle_lst) - 1)
-                    angle = angle_lst[rand_idx]
-                    image = TF.rotate(image, angle)
-                    gt = TF.rotate(gt, angle)
-        image = torch.unsqueeze(image, dim=0).to(self.device)
-        gt = torch.unsqueeze(gt, dim=0).to(self.device)
-        with torch.no_grad():
-            image = self.vae.encode(image).latent_dist.sample()
-            gt = self.vae.encode(gt).latent_dist.sample()
-
-        image = torch.squeeze(image, dim=0).to(self.device)
-        gt = torch.squeeze(gt, dim=0).to(self.device)
-
-        image = image.mul_(0.18215)
-        gt = gt.mul_(0.18215)
-
-        return gt, image
+        image_embeddings = image_embeddings.mul_(0.18215)
+        gt_embeddings = gt_embeddings.mul_(0.18215)
+        return gt_embeddings, image_embeddings
 
 
 if __name__ == "__main__":
