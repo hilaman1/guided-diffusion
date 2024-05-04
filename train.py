@@ -239,7 +239,6 @@ if __name__ == "__main__":
     parser.add_argument("--cross-model", type=bool, default=True)
 
     args = parser.parse_args()
-    args.model_name = args.model_name + "_" + str(args.epochs) + "epochs"
     args.model_name = f"{args.model_name}_{'DiT_cross' if args.cross_model else 'DiT'}_{args.epochs}epochs"
 
     world_size = torch.cuda.device_count()
