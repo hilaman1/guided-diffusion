@@ -117,11 +117,15 @@ class DiTBlock(nn.Module):
         )
 
         self.norm3 = nn.LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
-        self.cross_attention = nn.MultiheadAttention(embed_dim=hidden_size)
+        self.cross_attention = nn.MultiheadAttention(hidden_size, num_heads, add_bias_kv=True, batch_first=True)
 
     def forward(self, x, c):
         shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = self.adaLN_modulation(c).chunk(6, dim=-1)
         x = x + gate_msa * self.attn(modulate(self.norm1(x), shift_msa, scale_msa))
+
+        normed_c = self.norm3(c)
+        x = x + self.cross_attention(x, normed_c, normed_c)[0]
+
         x = x + gate_mlp * self.mlp(modulate(self.norm2(x), shift_mlp, scale_mlp))
         return x
 
@@ -372,7 +376,7 @@ def DiT_S_8(**kwargs):
     return DiT(depth=12, hidden_size=384, patch_size=8, num_heads=6, **kwargs)
 
 
-DiT_models = {
+DiT_cross_models = {
     'DiT-XL/2': DiT_XL_2,  'DiT-XL/4': DiT_XL_4,  'DiT-XL/8': DiT_XL_8,
     'DiT-L/2':  DiT_L_2,   'DiT-L/4':  DiT_L_4,   'DiT-L/8':  DiT_L_8,
     'DiT-B/2':  DiT_B_2,   'DiT-B/4':  DiT_B_4,   'DiT-B/8':  DiT_B_8,

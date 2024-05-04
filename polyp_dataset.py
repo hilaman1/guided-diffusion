@@ -25,6 +25,12 @@ class polyp_dataset(Dataset):
         else:
             self.images_folder_path = os.path.join(self.data_path, "test_images")
             self.gts_folder_path = os.path.join(self.data_path, "test_gt_images")
+        if not os.path.exists(self.images_folder_path):
+            print("Creating test and train images...")
+            self.create_train_images()
+            self.create_test_images()
+            print("Saved test and train images successfully")
+
         self.images_path = os.listdir(self.images_folder_path)
         self.gts_path = os.listdir(self.gts_folder_path)
 
@@ -87,8 +93,8 @@ class polyp_dataset(Dataset):
             transforms.Resize((256, 256), antialias=True)
         ])
 
-        image = transform(image)
-        gt = transform(gt)
+        image = transform(np.copy(image))
+        gt = transform(np.copy(gt))
 
         image = image.to(self.device)
         gt = gt.to(self.device)

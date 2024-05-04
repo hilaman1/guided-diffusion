@@ -5,8 +5,10 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="3103e7da-fe59-4084-b58a-974be54e4744" name="Changes" comment="- changed the script to fit kvasir dataset">
-      <change afterPath="$PROJECT_DIR$/models/DiT_cross.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/models/DiT_cross.py" beforeDir="false" afterPath="$PROJECT_DIR$/models/DiT_cross.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/polyp_dataset.py" beforeDir="false" afterPath="$PROJECT_DIR$/polyp_dataset.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/train.py" beforeDir="false" afterPath="$PROJECT_DIR$/train.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -180,9 +182,9 @@
     </configuration>
     <recent_temporary>
       <list>
+        <item itemvalue="Python.polyp_dataset" />
         <item itemvalue="Python.train" />
         <item itemvalue="Python.sample" />
-        <item itemvalue="Python.polyp_dataset" />
         <item itemvalue="Python.save_embedded_images" />
         <item itemvalue="Python.segmentation_env (1)" />
       </list>
@@ -365,9 +367,14 @@
           <option name="timeStamp" value="158" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$USER_HOME$/AppData/Local/Programs/Python/Python311/Lib/site-packages/diffusers/models/autoencoders/vae.py</url>
-          <line>142</line>
-          <option name="timeStamp" value="166" />
+          <url>file://$PROJECT_DIR$/train.py</url>
+          <line>222</line>
+          <option name="timeStamp" value="170" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/train.py</url>
+          <line>96</line>
+          <option name="timeStamp" value="173" />
         </line-breakpoint>
       </breakpoints>
       <default-breakpoints>

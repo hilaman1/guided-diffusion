@@ -6,6 +6,7 @@ from torch.utils.data.distributed import DistributedSampler
 from torch.utils.data import DataLoader
 from diffusers import DDPMScheduler
 from models.DiT import DiT_models
+from models.DiT_cross import DiT_cross_models
 from diffusers.models import AutoencoderKL
 from polyp_dataset import polyp_dataset
 from torch.utils.tensorboard import SummaryWriter
@@ -72,7 +73,7 @@ class Trainer:
             param.requires_grad = False
 
         self.model.to(gpu_id)
-        self.model = DDP(self.model, device_ids=[self.gpu_id], find_unused_parameters=True)
+        self.model = DDP(self.model, device_ids=[self.gpu_id])
 
         self.update_ema(self.ema, self.model.module, decay=0)
         self.ema.eval()
@@ -191,9 +192,16 @@ def main(rank: int, world_size: int, args):
 
     model = None
     if "DiT_B2" in model_name:
-        model = DiT_models['DiT-B/2'](in_channels=4, condition_channels=4, learn_sigma=False)
+        if args.cross_model:
+            model = DiT_cross_models['DiT-B/2'](in_channels=4, condition_channels=4, learn_sigma=False)
+        else:
+            model = DiT_models['DiT-B/2'](in_channels=4, condition_channels=4, learn_sigma=False)
     if "DiT_B4" in model_name:
-        model = DiT_models['DiT-B/4'](in_channels=4, condition_channels=4, learn_sigma=False)
+        if args.cross_model:
+            model = DiT_cross_models['DiT-B/4'](in_channels=4, condition_channels=4, learn_sigma=False)
+        else:
+            model = DiT_models['DiT-B/4'](in_channels=4, condition_channels=4, learn_sigma=False)
+
     handler = Trainer(model=model,
                       model_name=model_name,
                       load_pretrained_model=load_pretrained_model,
@@ -213,7 +221,8 @@ def main(rank: int, world_size: int, args):
                       cfg_scale=cfg_scale)
 
     print(f"Training Model: {model_name}\nData Path: {data_path}\nBatch Size: {batch_size}\nEpochs {epochs}\n"
-          f"Pretrained: {load_pretrained_model}")
+          f"Pretrained: {load_pretrained_model}\nCross Model: {args.cross_model}")
+
     handler.train()
     cleanup()
 
@@ -227,9 +236,11 @@ if __name__ == "__main__":
     parser.add_argument("--epochs", type=int, default=1200)
     parser.add_argument("--batch-size", type=int, default=16)
     parser.add_argument("--load-pretrained", type=bool, default=False)
+    parser.add_argument("--cross-model", type=bool, default=True)
 
     args = parser.parse_args()
     args.model_name = args.model_name + "_" + str(args.epochs) + "epochs"
+    args.model_name = f"{args.model_name}_{'DiT_cross' if args.cross_model else 'DiT'}_{args.epochs}epochs"
 
     world_size = torch.cuda.device_count()
     mp.spawn(main, args=(world_size, args,), nprocs=world_size)
