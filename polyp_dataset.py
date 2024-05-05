@@ -33,6 +33,11 @@ class polyp_dataset(Dataset):
         #
         # self.images_path = os.listdir(self.images_folder_path)
         # self.gts_path = os.listdir(self.gts_folder_path)
+        if self.mode == "test":
+            self.images_embeddings_path = os.path.join(self.data_path, "test_embeddings", "test_embeddings")
+            self.gt_embeddings_path = os.path.join(self.data_path, "test_gt_embeddings", "test_gt_embeddings")
+            self.images_embeddings = os.listdir(os.path.join(self.images_embeddings_path))
+            self.gt_embeddings = os.listdir(os.path.join(self.gt_embeddings_path))
 
         self.vae = AutoencoderKL.from_pretrained(f"stabilityai/sd-vae-ft-ema").to(self.device)
     def create_train_images(self):

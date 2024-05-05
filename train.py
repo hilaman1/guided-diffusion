@@ -236,7 +236,7 @@ if __name__ == "__main__":
     parser.add_argument("--epochs", type=int, default=150)
     parser.add_argument("--batch-size", type=int, default=16)
     parser.add_argument("--load-pretrained", type=bool, default=False)
-    parser.add_argument("--cross-model", type=bool, default=False)
+    parser.add_argument("--cross-model", type=bool, default=True)
 
     args = parser.parse_args()
     args.model_name = f"{args.model_name}_{'cross' if args.cross_model else ''}_{args.epochs}epochs"

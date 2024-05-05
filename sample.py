@@ -9,6 +9,7 @@ from diffusers import DDPMScheduler
 from polyp_dataset import polyp_dataset
 import matplotlib.pyplot as plt
 import cv2
+from models.DiT_cross import DiT_cross_models
 
 
 torch.manual_seed(42)
@@ -107,18 +108,25 @@ class Sampler:
             axis[0].imshow(torch.permute(torch.squeeze(image, dim=0), (1, 2, 0)).cpu().detach())
             axis[0].set_title("Image")
             plt.savefig(os.path.join(os.getcwd(), "saved_models", self.model_name, "samples", f"{i+1}.png"))
+            plt.close()
 
 
 
 
 if __name__ == "__main__":
-    model_name = "KvasirDiT_B2_with_augmentations_new_1200epochs"
+    model_name = "KvasirDiT_B2_with_8augmentations_cross_150epochs"
 
     model = None
     if "DiT_B2" in model_name:
-        model = DiT_models['DiT-B/2'](in_channels=4, condition_channels=4, learn_sigma=False)
+        if 'cross' in model_name:
+            model = DiT_cross_models['DiT-B/2'](in_channels=4, condition_channels=4, learn_sigma=False)
+        else:
+            model = DiT_models['DiT-B/2'](in_channels=4, condition_channels=4, learn_sigma=False)
     if "DiT_B4" in model_name:
-        model = DiT_models['DiT-B/4'](in_channels=4, condition_channels=4, learn_sigma=False)
+        if 'cross' in model_name:
+            model = DiT_cross_models['DiT-B/4'](in_channels=4, condition_channels=4, learn_sigma=False)
+        else:
+            model = DiT_models['DiT-B/4'](in_channels=4, condition_channels=4, learn_sigma=False)
 
     data_path = os.path.join(os.getcwd(), "data", "kvasir-seg")
     predictions_path = os.path.join(os.getcwd(), "data", "kvasir-seg", "pred")
