@@ -114,7 +114,7 @@ class Sampler:
 
 
 if __name__ == "__main__":
-    model_name = "KvasirDiT_B2_with_8augmentations_cross_150epochs"
+    model_name = "KvasirDiT_B2_with_8augmentations.1_cross_300epochs"
 
     model = None
     if "DiT_B2" in model_name:

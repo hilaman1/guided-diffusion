@@ -116,7 +116,7 @@ def eval_seg(pred, true_mask_p, threshold=(0.1, 0.3, 0.5, 0.7, 0.9)):
 
 def main():
     argParser = argparse.ArgumentParser()
-    argParser.add_argument("--model_name", type=str, default="KvasirDiT_B2_with_8augmentations__150epochs")
+    argParser.add_argument("--model_name", type=str, default="KvasirDiT_B2_with_8augmentations.1_cross_300epochs")
     argParser.add_argument("--pred_path", type=str, default=os.path.join(os.getcwd(), "data", "kvasir-seg", "pred"))
     argParser.add_argument("--data_path", type=str, default=os.path.join(os.getcwd(), "data", "kvasir-seg"))
     args = argParser.parse_args()
