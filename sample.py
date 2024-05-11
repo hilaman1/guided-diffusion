@@ -1,4 +1,3 @@
-import numpy as np
 import torch
 from torch.utils.data import DataLoader
 from models.DiT import DiT_models
@@ -10,6 +9,7 @@ from polyp_dataset import polyp_dataset
 import matplotlib.pyplot as plt
 import cv2
 from models.DiT_cross import DiT_cross_models
+import argparse
 
 
 torch.manual_seed(42)
@@ -17,13 +17,14 @@ torch.manual_seed(42)
 
 class Sampler:
     def __init__(self, model, model_name, data_path, beta_start, beta_end, num_training_steps, num_testing_steps,
-                 cfg_scale, guided):
+                 cfg_scale, guided, ema):
         self.device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
         self.model = model
         self.model_name = model_name
         self.model_path = os.path.join(os.getcwd(), "saved_models", self.model_name, f"{self.model_name}.pt")
         self.cfg_scale = cfg_scale
         self.guided = guided
+        self.ema = ema
 
         self.vae = AutoencoderKL.from_pretrained(f"stabilityai/sd-vae-ft-ema").to(self.device)
 
@@ -50,9 +51,12 @@ class Sampler:
         self.load_model()
 
     def load_model(self):
-        print(f"Loading model {self.model_name}")
+        print(f"Loading model {self.model_name} ({'EMA version' if self.ema else ''})")
         checkpoint = torch.load(self.model_path, map_location=self.device)
-        self.model.load_state_dict(checkpoint["model"])
+        if self.ema:
+            self.model.load_state_dict(checkpoint["ema"])
+        else:
+            self.model.load_state_dict(checkpoint["model"])
 
     def sample(self, predictions_path):
         if not os.path.exists(os.path.join(os.getcwd(), "saved_models", self.model_name, "samples")):
@@ -70,7 +74,7 @@ class Sampler:
 
             prediction, noise_images = sample(model, self.vae, self.sampler, image, self.num_training_steps,
                                               self.num_testing_steps, self.device, self.cfg_scale, self.guided)
-            model_pred_path = os.path.join(predictions_path, model_name)
+            model_pred_path = os.path.join(predictions_path, self.model_name)
             if not os.path.exists(model_pred_path):
                 os.mkdir(model_pred_path)
             curr_prediction_path = os.path.join(model_pred_path, f"pred_{i + 1}.png")
@@ -80,9 +84,6 @@ class Sampler:
             prediction = torch.sqrt(prediction[0, :, :] ** 2 + prediction[1, :, :] ** 2 + prediction[2, :, :] ** 2)
             prediction[prediction < 0.5] = 0
             prediction[prediction >= 0.5] = 1
-            # plt.figure()
-            # plt.imshow(gt.cpu().detach().numpy())
-            # plt.show()
 
             cv2.imwrite(curr_prediction_path, prediction.cpu().detach().numpy()*255)
 
@@ -111,25 +112,31 @@ class Sampler:
             plt.close()
 
 
-
-
 if __name__ == "__main__":
-    model_name = "KvasirDiT_B2_with_8augmentations.1_cross_300epochs"
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--model-name", type=str, default="KvasirDiT_B2_with_8augmentations.1")
+    parser.add_argument("--model", type=str, default="DiT_B2", choices=["DiT_XL2", "DiT_XL4", "DiT_XL8",
+                                                                        "DiT_L2", "DiT_L4", "DiT_L8",
+                                                                        "DiT_B2", "DiT_B4", "DiT_B8",
+                                                                        "DiT_S2", "DiT_S4", "DiT_S8"])
+    parser.add_argument("--data-path", type=str, default="./data/Kvasir-SEG")
+    parser.add_argument("--cross-model", type=bool, default=True)
+    parser.add_argument("--ema", type=bool, default=False)
 
-    model = None
-    if "DiT_B2" in model_name:
-        if 'cross' in model_name:
-            model = DiT_cross_models['DiT-B/2'](in_channels=4, condition_channels=4, learn_sigma=False)
-        else:
-            model = DiT_models['DiT-B/2'](in_channels=4, condition_channels=4, learn_sigma=False)
-    if "DiT_B4" in model_name:
-        if 'cross' in model_name:
-            model = DiT_cross_models['DiT-B/4'](in_channels=4, condition_channels=4, learn_sigma=False)
-        else:
-            model = DiT_models['DiT-B/4'](in_channels=4, condition_channels=4, learn_sigma=False)
+    args = parser.parse_args()
+    model_type = args.model
+    model_names = {
+        "DiT_XL2": "DiT-XL/2", "DiT_XL4": "DiT-XL/4", "DiT_XL8": "DiT-XL/8",
+        "DiT_L2": "DiT-L/2", "DiT_L4": "DiT-L/4", "DiT_L8": "DiT-L/8",
+        "DiT_B2": "DiT-B/2", "DiT_B4": "DiT-B/4", "DiT_B8": "DiT-B/8",
+        "DiT_S2": "DiT-S/2", "DiT_S4": "DiT-S/4", "DiT_S8": "DiT-S/8",
+    }
+    if args.cross_model:
+        model = DiT_cross_models[model_names[model_type]](in_channels=4, condition_channels=4, learn_sigma=False)
+    else:
+        model = DiT_models[model_names[model_type]](in_channels=4, condition_channels=4, learn_sigma=False)
 
-    data_path = os.path.join(os.getcwd(), "data", "kvasir-seg")
-    predictions_path = os.path.join(os.getcwd(), "data", "kvasir-seg", "pred")
+    predictions_path = os.path.join(os.getcwd(), "data", "Kvasir-SEG", "pred")
     beta_start = 10 ** -4
     beta_end = 2 * 10 ** -2
     num_training_steps = 1000
@@ -139,14 +146,15 @@ if __name__ == "__main__":
 
     sampler = Sampler(
         model=model,
-        model_name=model_name,
-        data_path=data_path,
+        model_name=args.model_name,
+        data_path=args.data_path,
         beta_start=beta_start,
         beta_end=beta_end,
         num_training_steps=num_training_steps,
         num_testing_steps=num_testing_steps,
         cfg_scale=cfg_scale,
-        guided=guided
+        guided=guided,
+        ema=args.ema
     )
 
     sampler.sample(predictions_path)

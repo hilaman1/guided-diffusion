@@ -1,3 +1,4 @@
+import argparse
 import matplotlib.pyplot as plt
 import torch
 import os.path
@@ -5,24 +6,72 @@ from torchvision.transforms import transforms
 from diffusers.models import AutoencoderKL
 import random
 import torchvision.transforms.functional as TF
-from itertools import combinations
+from tqdm import tqdm
+from utils import delete_dir
 
 
+def split_images(data_path, images_path, gt_path, train_fraction=0.8):
+    images_list = os.listdir(images_path)
+    if os.path.exists(os.path.join(data_path, "test_images")):
+        delete_dir(os.path.exists(os.path.join(data_path, "test_images")))
+        os.mkdir(os.path.join(data_path, "test_images"))
+    else:
+        os.mkdir(os.path.join(data_path, "test_images"))
 
-def save_embedded_images(data_path, images_path, gt_path, resize_height=512, resize_width=512):
+    if os.path.exists(os.path.join(data_path, "test_gt_images")):
+        delete_dir(os.path.join(data_path, "test_gt_images"))
+        os.mkdir(os.path.join(data_path, "test_gt_images"))
+    else:
+        os.mkdir(os.path.join(data_path, "test_gt_images"))
+
+    if os.path.exists(os.path.join(data_path, "train_images")):
+        delete_dir(os.path.join(data_path, "train_images"))
+        os.mkdir(os.path.join(data_path, "train_images"))
+    else:
+        os.mkdir(os.path.join(data_path, "train_images"))
+
+    if os.path.exists(os.path.join(data_path, "train_gt_images")):
+        delete_dir(os.path.join(data_path, "train_gt_images"))
+        os.mkdir(os.path.join(data_path, "train_gt_images"))
+    else:
+        os.mkdir(os.path.join(data_path, "train_gt_images"))
+
+    train_data = random.sample(images_list, int(train_fraction * len(images_list)))
+    test_data = [images_list[i] for i in range(len(images_list)) if images_list[i] not in train_data]
+
+    print("Saving Training Images")
+    for i in range(len(train_data)):
+        image = plt.imread(os.path.join(images_path, train_data[i]))
+        gt = plt.imread(os.path.join(gt_path, train_data[i]))
+
+        plt.imsave(os.path.join(data_path, "train_images", train_data[i]), image)
+        plt.imsave(os.path.join(data_path, "train_gt_images", train_data[i]), gt)
+
+    print("Saving Testing Images")
+    for i in range(len(train_data)):
+        image = plt.imread(os.path.join(images_path, test_data[i]))
+        gt = plt.imread(os.path.join(gt_path, train_data[i]))
+
+        plt.imsave(os.path.join(data_path, "test_images", train_data[i]), image)
+        plt.imsave(os.path.join(data_path, "test_gt_images", train_data[i]), gt)
+    print("Saved Images Successfully")
+
+
+def save_embedded_images(data_path, images_path, gt_path, mode, resize_height=512, resize_width=512):
+    assert mode in ["train", "test"], "mode must be train/test."
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
-    output_image_path = os.path.join(data_path, "train_embeddings")
+    output_image_path = os.path.join(data_path, f"{mode}_embeddings")
     if not os.path.exists(output_image_path):
         os.mkdir(output_image_path)
-    output_image_path = os.path.join(output_image_path, "train_embeddings")
+    output_image_path = os.path.join(output_image_path, f"{mode}_embeddings")
     if not os.path.exists(output_image_path):
         os.mkdir(output_image_path)
 
-    output_gt_path = os.path.join(data_path, "train_gt_embeddings")
+    output_gt_path = os.path.join(data_path, f"{mode}_gt_embeddings")
     if not os.path.exists(output_gt_path):
         os.mkdir(output_gt_path)
-    output_gt_path = os.path.join(output_gt_path, "train_gt_embeddings")
+    output_gt_path = os.path.join(output_gt_path, f"{mode}_gt_embeddings")
     if not os.path.exists(output_gt_path):
         os.mkdir(output_gt_path)
 
@@ -35,9 +84,7 @@ def save_embedded_images(data_path, images_path, gt_path, resize_height=512, res
         transforms.Resize((resize_height, resize_width), antialias=True)
     ])
 
-    for i in range(len(images_list)):
-        if i % 100 == 0:
-            print(f"Iteration {i}/{len(images_list)}")
+    for i in tqdm(range(len(images_list))):
         image = os.path.join(images_path, images_list[i])
         gt = os.path.join(gt_path, gt_list[i])
 
@@ -49,10 +96,6 @@ def save_embedded_images(data_path, images_path, gt_path, resize_height=512, res
 
         image = torch.unsqueeze(image, dim=0).to(device)
         gt = torch.unsqueeze(gt, dim=0).to(device)
-
-        # # check if all channels in gt are the same
-        # if torch.all(gt[0, 0, :, :] == gt[0, 1, :, :]) and torch.all(gt[0, 1, :, :] == gt[0, 2, :, :]):
-        #     continue
 
         if 'polyp' in data_path:
             # make the gt a single channel image (multipiled by 3 channels to be compatible with the vae input
@@ -71,28 +114,9 @@ def save_embedded_images(data_path, images_path, gt_path, resize_height=512, res
         else:
             gt_single_channel = gt
 
-        # # plot the single channel gt
-        # plt.figure()
-        # plt.imshow(torch.permute(torch.squeeze(gt_single_channel.cpu(), dim=0), (1, 2, 0)))
-        # plt.show()
-
         with torch.no_grad():
             image_embeddings = vae.encode(image).latent_dist.sample()
             gt_embeddings = vae.encode(gt_single_channel).latent_dist.sample()
-
-        # # plot the gt
-        # plt.figure()
-        # plt.imshow(torch.permute(torch.squeeze(gt, dim=0), (1, 2, 0)).cpu().detach().numpy() * 255)
-        # plt.show()
-        #
-        # gt=torch.squeeze(gt,dim=0)
-        # # create a binary image
-        # gt = torch.sqrt(gt[0, :, :] ** 2 + gt[1, :, :] ** 2 + gt[2, :, :] ** 2)
-        # gt[gt < 0.5] = 0
-        # gt[gt >= 0.5] = 1
-        # plt.figure()
-        # plt.imshow(gt.cpu().detach().numpy())
-        # plt.show()
 
         image_output_file = os.path.join(output_image_path, f"{images_list[i]}.pt")
         gt_output_file = os.path.join(output_gt_path, f"{gt_list[i]}.pt")
@@ -100,31 +124,13 @@ def save_embedded_images(data_path, images_path, gt_path, resize_height=512, res
         torch.save(image_embeddings, image_output_file)
         torch.save(gt_embeddings, gt_output_file)
 
-        # image_embeddings = torch.load(image_output_file)
-        # gt_embeddings = torch.load(gt_output_file)
-        # with torch.no_grad():
-        #     image = vae.decode(image_embeddings).sample
-        #     gt = vae.decode(gt_embeddings).sample
-        #
-        # plt.imshow(torch.permute(torch.squeeze(image.cpu().detach(), dim=0), (1, 2, 0)))
-        # plt.imshow(torch.permute(torch.squeeze(gt.cpu().detach(), dim=0), (1, 2, 0)))
-        # plt.show()
+        if mode == "train":
+            augmentations = ['contrast', 'brightness', 'saturation', 'hue_yellow', 'hue_red', 'flipping', 'rotation']
 
-#         create augmentations for the images and gt
-        augmentations = ['contrast', 'brightness', 'saturation', 'hue_yellow', 'hue_red', 'flipping', 'rotation']
+            for augmentation in augmentations:
+                image_augmented = image.clone()
+                gt_single_channel_augmented = gt_single_channel.clone()
 
-        augmentation_combinations = []
-        for j in range(1, 4):
-            augmentation_combinations.extend(list(combinations(augmentations, j)))
-        # choose 8 from augmentation_combinations
-        augmentation_combinations = random.sample(augmentation_combinations, 8)
-
-
-        for augmentation_combination in augmentation_combinations:
-            image_augmented = image.clone()
-            gt_single_channel_augmented = gt_single_channel.clone()
-
-            for augmentation in augmentation_combination:
                 if augmentation == 'contrast':
                     contrast_lst = [0.5, 1.5]
                     rand_idx = random.randint(0, len(contrast_lst) - 1)
@@ -158,23 +164,41 @@ def save_embedded_images(data_path, images_path, gt_path, resize_height=512, res
                     angle = angle_lst[rand_idx]
                     image_augmented = TF.rotate(image_augmented, angle)
                     gt_single_channel_augmented = TF.rotate(gt_single_channel_augmented, angle)
-            with torch.no_grad():
-                image_embeddings = vae.encode(image_augmented).latent_dist.sample()
-                gt_embeddings = vae.encode(gt_single_channel_augmented).latent_dist.sample()
 
-            augmentation_string = '_'.join(augmentation_combination)
-            image_output_file = os.path.join(output_image_path, f"{images_list[i]}_{augmentation_string}.pt")
-            gt_output_file = os.path.join(output_gt_path, f"{gt_list[i]}_{augmentation_string}.pt")
+                with torch.no_grad():
+                    image_embeddings = vae.encode(image_augmented).latent_dist.sample()
+                    gt_embeddings = vae.encode(gt_single_channel_augmented).latent_dist.sample()
 
-            torch.save(image_embeddings, image_output_file)
-            torch.save(gt_embeddings, gt_output_file)
+                augmentation_string = '_'.join(augmentation)
+                image_output_file = os.path.join(output_image_path, f"{images_list[i]}_{augmentation_string}.pt")
+                gt_output_file = os.path.join(output_gt_path, f"{gt_list[i]}_{augmentation_string}.pt")
+
+                torch.save(image_embeddings, image_output_file)
+                torch.save(gt_embeddings, gt_output_file)
 
 
 if __name__ == "__main__":
-    data_path = os.path.join(os.getcwd(), "data", "kvasir-seg")
-    images_path = os.path.join(data_path, "train_images")
-    gt_path = os.path.join(data_path, "train_gt_images")
-    resize_height = 256
-    resize_width = 256
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--data-path", type=str, default="./data/Kvasir-SEG")
+    parser.add_argument("--images-path", type=str, default="./data/Kvasir-SEG/images")
+    parser.add_argument("--images-path", type=str, default="./data/Kvasir-SEG/masks")
+    parser.add_argument("--train-fraction", type=float, default=0.8)
+    parser.add_argument("--resize", type=int, default=256)
 
-    save_embedded_images(data_path, images_path, gt_path, resize_height, resize_width)
+    args = parser.parse_args()
+    data_path = args.data_path
+    images_path = args.images_path
+    gt_path = args.gt_path
+    train_fraction = args.train_fraction
+    resize_height = args.resize
+    resize_width = args.resize
+
+    split_images(data_path, images_path, gt_path, train_fraction)
+
+    train_images_path = os.path.join(data_path, "train_images")
+    train_gt_path = os.path.join(data_path, "train_gt_images")
+    save_embedded_images(data_path, train_images_path, train_gt_path, "train", resize_height, resize_width)
+
+    test_images_path = os.path.join(data_path, "test_images")
+    test_gt_path = os.path.join(data_path, "test_gt_images")
+    save_embedded_images(data_path, test_images_path, test_gt_path, "test", resize_height, resize_width)

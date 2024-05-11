@@ -136,8 +136,6 @@ class Trainer:
 
             training_avg_loss, images_list = self.train_one_epoch(epoch, images_list)
 
-            if epoch == 0:
-                print(f"| GPU[{self.gpu_id}] | initiative Loss {training_avg_loss:.5f} |")
             print("-" * 40)
             print(f"| End of epoch {epoch} | Loss {training_avg_loss:.5f} |")
 
@@ -175,7 +173,7 @@ def main(rank: int, world_size: int, args):
     setup(rank, world_size)
 
     data_path = args.data_path
-    model_name = args.model_name  # AdaptiveLayerNormalization_B4
+    model_name = args.model_name
     batch_size = args.batch_size
     lr = 1e-4
     beta_start = 10 ** -4
@@ -190,17 +188,17 @@ def main(rank: int, world_size: int, args):
     guided = True
     load_pretrained_model = args.load_pretrained
 
-    model = None
-    if "DiT_B2" in model_name:
-        if args.cross_model:
-            model = DiT_cross_models['DiT-B/2'](in_channels=4, condition_channels=4, learn_sigma=False)
-        else:
-            model = DiT_models['DiT-B/2'](in_channels=4, condition_channels=4, learn_sigma=False)
-    if "DiT_B4" in model_name:
-        if args.cross_model:
-            model = DiT_cross_models['DiT-B/4'](in_channels=4, condition_channels=4, learn_sigma=False)
-        else:
-            model = DiT_models['DiT-B/4'](in_channels=4, condition_channels=4, learn_sigma=False)
+    model_type = args.model
+    model_names = {
+        "DiT_XL2":"DiT-XL/2", "DiT_XL4":"DiT-XL/4", "DiT_XL8":"DiT-XL/8",
+        "DiT_L2":"DiT-L/2", "DiT_L4":"DiT-L/4", "DiT_L8":"DiT-L/8",
+        "DiT_B2":"DiT-B/2", "DiT_B4":"DiT-B/4", "DiT_B8":"DiT-B/8",
+        "DiT_S2":"DiT-S/2", "DiT_S4":"DiT-S/4", "DiT_S8":"DiT-S/8",
+    }
+    if args.cross_model:
+        model = DiT_cross_models[model_names[model_type]](in_channels=4, condition_channels=4, learn_sigma=False)
+    else:
+        model = DiT_models[model_names[model_type]](in_channels=4, condition_channels=4, learn_sigma=False)
 
     handler = Trainer(model=model,
                       model_name=model_name,
@@ -220,8 +218,9 @@ def main(rank: int, world_size: int, args):
                       cfg_prob=cfg_prob,
                       cfg_scale=cfg_scale)
 
-    print(f"Training Model: {model_name}\nData Path: {data_path}\nBatch Size: {batch_size}\nEpochs {epochs}\n"
-          f"Pretrained: {load_pretrained_model}\nCross Model: {args.cross_model}")
+    print(f"Training Model: {model_name}\nModel Type: {model_names[model_type]}\nData Path: {data_path}\n"
+          f"Batch Size: {batch_size}\nEpochs: {epochs}\nPretrained: {load_pretrained_model}\n"
+          f"Cross Model: {args.cross_model}")
 
     handler.train()
     cleanup()
@@ -232,14 +231,17 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--model-name", type=str, default="KvasirDiT_B2_with_8augmentations.1")
+    parser.add_argument("--model", type=str, default="DiT_B2", choices=["DiT_XL2", "DiT_XL4", "DiT_XL8",
+                                                                        "DiT_L2", "DiT_L4", "DiT_L8",
+                                                                        "DiT_B2", "DiT_B4", "DiT_B8",
+                                                                        "DiT_S2", "DiT_S4", "DiT_S8"])
     parser.add_argument("--data-path", type=str, default="./data/kvasir-seg")
-    parser.add_argument("--epochs", type=int, default=300)
+    parser.add_argument("--epochs", type=int, default=150)
     parser.add_argument("--batch-size", type=int, default=16)
     parser.add_argument("--load-pretrained", type=bool, default=False)
     parser.add_argument("--cross-model", type=bool, default=True)
 
     args = parser.parse_args()
-    args.model_name = f"{args.model_name}_{'cross' if args.cross_model else ''}_{args.epochs}epochs"
 
     world_size = torch.cuda.device_count()
     mp.spawn(main, args=(world_size, args,), nprocs=world_size)
