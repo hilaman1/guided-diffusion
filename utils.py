@@ -45,7 +45,7 @@ def sample(model, vae, sampler, image, num_training_steps, num_testing_steps, de
     empty_condition = torch.zeros(image.shape, device=device)
 
     noise_images = []
-    for timestep in tqdm(range(num_training_steps - 1, 0, -int(num_training_steps / num_testing_steps))):
+    for timestep in range(num_training_steps - 1, 0, -int(num_training_steps / num_testing_steps)):
         with torch.no_grad():
             t = torch.tensor([timestep], device=device)
             noise_prediction = (1 + cfg_scale) * model(noise, t, image) - \

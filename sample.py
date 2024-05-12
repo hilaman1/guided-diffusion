@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import cv2
 from models.DiT_cross import DiT_cross_models
 import argparse
+from tqdm import tqdm
 
 
 torch.manual_seed(42)
@@ -51,7 +52,7 @@ class Sampler:
         self.load_model()
 
     def load_model(self):
-        print(f"Loading model {self.model_name} ({'EMA version' if self.ema else ''})")
+        print(f"Loading model {self.model_name} {'(EMA version)' if self.ema else ''}")
         checkpoint = torch.load(self.model_path, map_location=self.device)
         if self.ema:
             self.model.load_state_dict(checkpoint["ema"])
@@ -67,9 +68,7 @@ class Sampler:
                                    self.device)
         data_iter = iter(self.test_dataloader)
 
-        for i in range(len(self.test_dataloader)):
-            print(f"Sampling image {i+1}")
-
+        for i in tqdm(range(len(self.test_dataloader))):
             gt, image = next(data_iter)
 
             prediction, noise_images = sample(model, self.vae, self.sampler, image, self.num_training_steps,
@@ -157,4 +156,6 @@ if __name__ == "__main__":
         ema=args.ema
     )
 
+    print(f"Model Name: {args.model_name}\nModel: {args.model}\nData Path: {args.data_path}\n"
+          f"Cross Model: {args.cross_model}\nEMA: {args.ema}")
     sampler.sample(predictions_path)

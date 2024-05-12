@@ -8,6 +8,10 @@ import random
 import torchvision.transforms.functional as TF
 from tqdm import tqdm
 from utils import delete_dir
+import numpy as np
+
+
+random.seed(42)
 
 
 def split_images(data_path, images_path, gt_path, train_fraction=0.8):
@@ -50,10 +54,10 @@ def split_images(data_path, images_path, gt_path, train_fraction=0.8):
     print("Saving Testing Images")
     for i in range(len(test_data)):
         image = plt.imread(os.path.join(images_path, test_data[i]))
-        gt = plt.imread(os.path.join(gt_path, train_data[i]))
+        gt = plt.imread(os.path.join(gt_path, test_data[i]))
 
-        plt.imsave(os.path.join(data_path, "test_images", train_data[i]), image)
-        plt.imsave(os.path.join(data_path, "test_gt_images", train_data[i]), gt)
+        plt.imsave(os.path.join(data_path, "test_images", test_data[i]), image)
+        plt.imsave(os.path.join(data_path, "test_gt_images", test_data[i]), gt)
     print("Saved Images Successfully")
 
 
@@ -91,8 +95,8 @@ def save_embedded_images(data_path, images_path, gt_path, mode, resize_height=51
         image = plt.imread(image)
         gt = plt.imread(gt)
 
-        image = transform(image)
-        gt = transform(gt)
+        image = transform(np.copy(image))
+        gt = transform(np.copy(gt))
 
         image = torch.unsqueeze(image, dim=0).to(device)
         gt = torch.unsqueeze(gt, dim=0).to(device)
