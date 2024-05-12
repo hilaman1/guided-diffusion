@@ -13,7 +13,7 @@ from utils import delete_dir
 def split_images(data_path, images_path, gt_path, train_fraction=0.8):
     images_list = os.listdir(images_path)
     if os.path.exists(os.path.join(data_path, "test_images")):
-        delete_dir(os.path.exists(os.path.join(data_path, "test_images")))
+        delete_dir(os.path.join(data_path, "test_images"))
         os.mkdir(os.path.join(data_path, "test_images"))
     else:
         os.mkdir(os.path.join(data_path, "test_images"))
@@ -48,7 +48,7 @@ def split_images(data_path, images_path, gt_path, train_fraction=0.8):
         plt.imsave(os.path.join(data_path, "train_gt_images", train_data[i]), gt)
 
     print("Saving Testing Images")
-    for i in range(len(train_data)):
+    for i in range(len(test_data)):
         image = plt.imread(os.path.join(images_path, test_data[i]))
         gt = plt.imread(os.path.join(gt_path, train_data[i]))
 
@@ -132,21 +132,13 @@ def save_embedded_images(data_path, images_path, gt_path, mode, resize_height=51
                 gt_single_channel_augmented = gt_single_channel.clone()
 
                 if augmentation == 'contrast':
-                    contrast_lst = [0.5, 1.5]
-                    rand_idx = random.randint(0, len(contrast_lst) - 1)
-                    contrast = contrast_lst[rand_idx]
+                    contrast = random.uniform(0.5, 1.5)
                     image_augmented = TF.adjust_contrast(image_augmented, contrast)
                 elif augmentation == 'brightness':
-                    brightness_lst = [0.7, 0.8, 1.2, 1.5]
-                    # choose from the brightness list
-                    rand_idx = random.randint(0, len(brightness_lst) - 1)
-                    brightness = brightness_lst[rand_idx]
+                    brightness = random.uniform(0.7, 1.5)
                     image_augmented = TF.adjust_brightness(image_augmented, brightness)
                 elif augmentation == 'saturation':
-                    saturation_lst = [0.5, 0.7, 1.5, 1.6]
-                    # choose from the saturation list
-                    rand_idx = random.randint(0, len(saturation_lst) - 1)
-                    saturation = saturation_lst[rand_idx]
+                    saturation = random.uniform(1.1, 1.5)
                     image_augmented = TF.adjust_saturation(image_augmented, saturation)
                 elif augmentation == 'hue_yellow':
                     hue = 0.07
@@ -158,10 +150,7 @@ def save_embedded_images(data_path, images_path, gt_path, mode, resize_height=51
                     image_augmented = TF.hflip(image_augmented)
                     gt_single_channel_augmented = TF.hflip(gt_single_channel_augmented)
                 elif augmentation == 'rotation':
-                    angle_lst = [90, 180, 270]
-                    # choose from the angle list
-                    rand_idx = random.randint(0, len(angle_lst) - 1)
-                    angle = angle_lst[rand_idx]
+                    angle = random.randint(0, 360)
                     image_augmented = TF.rotate(image_augmented, angle)
                     gt_single_channel_augmented = TF.rotate(gt_single_channel_augmented, angle)
 
@@ -179,10 +168,10 @@ def save_embedded_images(data_path, images_path, gt_path, mode, resize_height=51
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--data-path", type=str, default="./data/Kvasir-SEG")
-    parser.add_argument("--images-path", type=str, default="./data/Kvasir-SEG/images")
-    parser.add_argument("--images-path", type=str, default="./data/Kvasir-SEG/masks")
-    parser.add_argument("--train-fraction", type=float, default=0.8)
+    parser.add_argument("--data_path", type=str, default="./data/Kvasir-SEG")
+    parser.add_argument("--images_path", type=str, default="./data/Kvasir-SEG/images")
+    parser.add_argument("--gt_path", type=str, default="./data/Kvasir-SEG/masks")
+    parser.add_argument("--train_fraction", type=float, default=0.8)
     parser.add_argument("--resize", type=int, default=256)
 
     args = parser.parse_args()
