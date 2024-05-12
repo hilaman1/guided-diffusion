@@ -40,8 +40,8 @@ def split_images(data_path, images_path, gt_path, train_fraction=0.8):
     else:
         os.mkdir(os.path.join(data_path, "train_gt_images"))
 
-    train_data = random.sample(images_list, int(train_fraction * len(images_list)))
-    test_data = [images_list[i] for i in range(len(images_list)) if images_list[i] not in train_data]
+    train_data = images_list[:int(train_fraction * len(images_list))]
+    test_data = images_list[int(train_fraction * len(images_list)):]
 
     print("Saving Training Images")
     for i in range(len(train_data)):
