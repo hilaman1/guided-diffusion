@@ -239,9 +239,10 @@ if __name__ == "__main__":
     parser.add_argument("--epochs", type=int, default=150)
     parser.add_argument("--batch-size", type=int, default=16)
     parser.add_argument("--load-pretrained", type=bool, default=False)
-    parser.add_argument("--cross-model", type=bool, default=True)
+    parser.add_argument("--cross-model", type=str, default="true", choices=["true", "false"])
 
     args = parser.parse_args()
+    args.cross_model = True if args.cross_model == "true" else False
 
     world_size = torch.cuda.device_count()
     mp.spawn(main, args=(world_size, args,), nprocs=world_size)

@@ -1,13 +1,8 @@
 import torch
 from torch.utils.data import Dataset, DataLoader
-import torchvision.transforms.functional as TF
-import numpy as np
 import os
 import matplotlib.pyplot as plt
 from diffusers.models import AutoencoderKL
-import random
-import cv2
-from torchvision import transforms as transforms
 from diffusers import DDPMScheduler
 
 
@@ -31,48 +26,6 @@ class polyp_dataset(Dataset):
             self.gt_embeddings_path = os.path.join(self.data_path, "test_gt_embeddings", "test_gt_embeddings")
             self.images_embeddings = os.listdir(os.path.join(self.images_embeddings_path))
             self.gt_embeddings = os.listdir(os.path.join(self.gt_embeddings_path))
-
-    def create_train_images(self):
-        if 'polyps' in self.data_path:
-            self.images_folder_path = os.path.join(self.data_path, "train", "train")
-            self.gts_folder_path = os.path.join(self.data_path, "train_gt", "train_gt")
-        else:
-            self.images_folder_path = os.path.join(self.data_path, "images")
-            self.gts_folder_path = os.path.join(self.data_path, "masks")
-        self.images_path = os.listdir(self.images_folder_path)
-        self.gts_path = os.listdir(self.gts_folder_path)
-        self.images_path = self.images_path[:int(TRAIN_FRACTION * len(self.images_path))]
-        self.gts_path = self.gts_path[:int(TRAIN_FRACTION * len(self.gts_path))]
-        if not os.path.exists(os.path.join(self.data_path, "train_images")):
-            os.mkdir(os.path.join(self.data_path, "train_images"))
-        if not os.path.exists(os.path.join(self.data_path, "train_gt_images")):
-            os.mkdir(os.path.join(self.data_path, "train_gt_images"))
-        for i in range(len(self.images_path)):
-            image = cv2.imread(os.path.join(self.images_folder_path, self.images_path[i]))
-            gt = cv2.imread(os.path.join(self.gts_folder_path, self.gts_path[i]))
-            cv2.imwrite(os.path.join(self.data_path, "train_images", self.images_path[i]), image)
-            cv2.imwrite(os.path.join(self.data_path, "train_gt_images", self.gts_path[i]), gt)
-
-    def create_test_images(self):
-        if 'polyps' in self.data_path:
-            self.images_folder_path = os.path.join(self.data_path, "train", "train")
-            self.gts_folder_path = os.path.join(self.data_path, "train_gt", "train_gt")
-        else:
-            self.images_folder_path = os.path.join(self.data_path, "images")
-            self.gts_folder_path = os.path.join(self.data_path, "masks")
-        self.images_path = os.listdir(self.images_folder_path)
-        self.gts_path = os.listdir(self.gts_folder_path)
-        self.images_path = self.images_path[int(TRAIN_FRACTION * len(self.images_path)):]
-        self.gts_path = self.gts_path[int(TRAIN_FRACTION * len(self.gts_path)):]
-        if not os.path.exists(os.path.join(self.data_path, "test_images")):
-            os.mkdir(os.path.join(self.data_path, "test_images"))
-        if not os.path.exists(os.path.join(self.data_path, "test_gt_images")):
-            os.mkdir(os.path.join(self.data_path, "test_gt_images"))
-        for i in range(len(self.images_path)):
-            image = cv2.imread(os.path.join(self.images_folder_path, self.images_path[i]))
-            gt = cv2.imread(os.path.join(self.gts_folder_path, self.gts_path[i]))
-            cv2.imwrite(os.path.join(self.data_path, "test_images", self.images_path[i]), image)
-            cv2.imwrite(os.path.join(self.data_path, "test_gt_images", self.gts_path[i]), gt)
 
     def __len__(self):
         return len(self.images_embeddings)
