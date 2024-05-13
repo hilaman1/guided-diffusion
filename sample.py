@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 from torch.utils.data import DataLoader
 from models.DiT import DiT_models
@@ -62,6 +63,8 @@ class Sampler:
     def sample(self, predictions_path):
         if not os.path.exists(os.path.join(os.getcwd(), "saved_models", self.model_name, "samples")):
             os.mkdir(os.path.join(os.getcwd(), "saved_models", self.model_name, "samples"))
+        if not os.path.exists(predictions_path):
+            os.mkdir(predictions_path)
 
         model.eval()
         self.sampler.set_timesteps(len(range(num_training_steps - 1, 0, -int(num_training_steps / num_testing_steps))),
@@ -99,13 +102,16 @@ class Sampler:
 
             image = image / 0.18125
             image = self.vae.decode(image).sample
+            image = torch.permute(torch.squeeze(image, dim=0), (1, 2, 0)).cpu().detach()
+            image = (image - torch.min(image)) / (torch.max(image) - torch.min(image))
+            image = np.asarray(255 * image.numpy(), dtype=np.uint8)
 
             fig, axis = plt.subplots(1, 3)
             axis[2].imshow(prediction.cpu().detach())
             axis[2].set_title("Prediction")
             axis[1].imshow(gt.cpu().detach())
             axis[1].set_title("GT")
-            axis[0].imshow(torch.permute(torch.squeeze(image, dim=0), (1, 2, 0)).cpu().detach())
+            axis[0].imshow(image)
             axis[0].set_title("Image")
             plt.savefig(os.path.join(os.getcwd(), "saved_models", self.model_name, "samples", f"{i+1}.png"))
             plt.close()
@@ -113,8 +119,8 @@ class Sampler:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model-name", type=str, default="KvasirDiT_B2_with_8augmentations.1")
-    parser.add_argument("--model", type=str, default="DiT_B2", choices=["DiT_XL2", "DiT_XL4", "DiT_XL8",
+    parser.add_argument("--model-name", type=str, default="DiT_S8_CROSS_Kvasir")
+    parser.add_argument("--model", type=str, default="DiT_S8", choices=["DiT_XL2", "DiT_XL4", "DiT_XL8",
                                                                         "DiT_L2", "DiT_L4", "DiT_L8",
                                                                         "DiT_B2", "DiT_B4", "DiT_B8",
                                                                         "DiT_S2", "DiT_S4", "DiT_S8"])

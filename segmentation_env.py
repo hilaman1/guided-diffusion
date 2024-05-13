@@ -14,6 +14,7 @@ from torch.utils.data import DataLoader
 from diffusers.models import AutoencoderKL
 import matplotlib.pyplot as plt
 import os
+from tqdm import tqdm
 
 
 def iou(outputs: np.array, labels: np.array):
@@ -116,9 +117,9 @@ def eval_seg(pred, true_mask_p, threshold=(0.1, 0.3, 0.5, 0.7, 0.9)):
 
 def main():
     argParser = argparse.ArgumentParser()
-    argParser.add_argument("--model_name", type=str, default="KvasirDiT_B2_with_8augmentations.1_cross_300epochs")
-    argParser.add_argument("--pred_path", type=str, default=os.path.join(os.getcwd(), "data", "kvasir-seg", "pred"))
-    argParser.add_argument("--data_path", type=str, default=os.path.join(os.getcwd(), "data", "kvasir-seg"))
+    argParser.add_argument("--model-name", type=str, default="DiT_S8_CROSS_Kvasir")
+    argParser.add_argument("--pred-path", type=str, default=os.path.join(os.getcwd(), "data", "Kvasir-SEG", "pred"))
+    argParser.add_argument("--data-path", type=str, default=os.path.join(os.getcwd(), "data", "Kvasir-SEG"))
     args = argParser.parse_args()
 
     mix_res = (0, 0)
@@ -134,8 +135,7 @@ def main():
     test_dataloader = DataLoader(test_dataset, batch_size=1, shuffle=False)
     data_iter = iter(test_dataloader)
 
-    for i in range(len(test_dataloader)):
-        print(f"Sampling image {i + 1}")
+    for i in tqdm(range(len(test_dataloader))):
         gt, image = next(data_iter)
         num += 1
         curr_prediction_path = os.path.join(model_pred_path, f"pred_{i + 1}.png")

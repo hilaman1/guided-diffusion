@@ -230,12 +230,12 @@ if __name__ == "__main__":
     assert torch.cuda.is_available(), "Did not find a GPU"
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model-name", type=str, default="KvasirDiT_B2_with_8augmentations.1")
-    parser.add_argument("--model", type=str, default="DiT_B2", choices=["DiT_XL2", "DiT_XL4", "DiT_XL8",
+    parser.add_argument("--model-name", type=str, default="DiT_S8_CROSS_Kvasir")
+    parser.add_argument("--model", type=str, default="DiT_S8", choices=["DiT_XL2", "DiT_XL4", "DiT_XL8",
                                                                         "DiT_L2", "DiT_L4", "DiT_L8",
                                                                         "DiT_B2", "DiT_B4", "DiT_B8",
                                                                         "DiT_S2", "DiT_S4", "DiT_S8"])
-    parser.add_argument("--data-path", type=str, default="./data/kvasir-seg")
+    parser.add_argument("--data-path", type=str, default="./data/Kvasir-SEG")
     parser.add_argument("--epochs", type=int, default=150)
     parser.add_argument("--batch-size", type=int, default=16)
     parser.add_argument("--load-pretrained", type=bool, default=False)
