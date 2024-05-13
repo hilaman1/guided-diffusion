@@ -71,12 +71,19 @@ def save_embedded_images(data_path, images_path, gt_path, mode, resize_height=51
     output_image_path = os.path.join(output_image_path, f"{mode}_embeddings")
     if not os.path.exists(output_image_path):
         os.mkdir(output_image_path)
+    else:
+        delete_dir(output_image_path)
+        os.mkdir(output_image_path)
+
 
     output_gt_path = os.path.join(data_path, f"{mode}_gt_embeddings")
     if not os.path.exists(output_gt_path):
         os.mkdir(output_gt_path)
     output_gt_path = os.path.join(output_gt_path, f"{mode}_gt_embeddings")
     if not os.path.exists(output_gt_path):
+        os.mkdir(output_gt_path)
+    else:
+        delete_dir(output_gt_path)
         os.mkdir(output_gt_path)
 
     vae = AutoencoderKL.from_pretrained(f"stabilityai/sd-vae-ft-ema").to(device)
