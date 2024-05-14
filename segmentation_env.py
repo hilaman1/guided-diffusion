@@ -117,14 +117,14 @@ def eval_seg(pred, true_mask_p, threshold=(0.1, 0.3, 0.5, 0.7, 0.9)):
 
 def main():
     argParser = argparse.ArgumentParser()
-    argParser.add_argument("--model-name", type=str, default="DiT_S8_CROSS_Kvasir")
+    argParser.add_argument("--model-name", type=str, default="DiT_B4_CROSS_Kvasir")
     argParser.add_argument("--pred-path", type=str, default=os.path.join(os.getcwd(), "data", "Kvasir-SEG", "pred"))
     argParser.add_argument("--data-path", type=str, default=os.path.join(os.getcwd(), "data", "Kvasir-SEG"))
     args = argParser.parse_args()
 
     mix_res = (0, 0)
     num = 0
-    model_pred_path = os.path.join(f"{args.pred_path}", f"{args.model_name}")
+    model_pred_path = os.path.join(f"{args.pred_path}")
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
     test_dataset = polyp_dataset(

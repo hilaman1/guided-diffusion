@@ -5,6 +5,9 @@ python train.py --model-name DiT_S2_polyps --model DiT_S2 --data-path ./data/pol
 python train.py --model-name DiT_B8_polyps --model DiT_B8 --data-path ./data/polyps --epochs 150 --cross-model false
 python train.py --model-name DiT_B4_polyps --model DiT_B4 --data-path ./data/polyps --epochs 150 --cross-model false
 python train.py --model-name DiT_B2_polyps --model DiT_B2 --data-path ./data/polyps --epochs 150 --cross-model false
+python train.py --model-name DiT_L2_polyps --model DiT_L2 --data-path ./data/polyps --epochs 150 --cross-model false
+
+
 
 # Train all versions of DiT cross - Polyps
 python train.py --model-name DiT_S8_CROSS_polyps --model DiT_S8 --data-path ./data/polyps --epochs 150 --cross-model true
@@ -98,3 +101,13 @@ python sample.py --model-name DiT_B2_Kvasir --model DiT_B2 --data-path ./data/Kv
 python sample.py --model-name DiT_B8_Kvasir --model DiT_B8 --data-path ./data/Kvasir-SEG --cross-model false --ema false --prediction-path ./saved_models/DiT_B8_Kvasir/pred --num-images 20
 python sample.py --model-name DiT_B4_Kvasir --model DiT_B4 --data-path ./data/Kvasir-SEG --cross-model false --ema false --prediction-path ./saved_models/DiT_B4_Kvasir/pred --num-images 20
 python sample.py --model-name DiT_B2_Kvasir --model DiT_B2 --data-path ./data/Kvasir-SEG --cross-model false --ema false --prediction-path ./saved_models/DiT_B2_Kvasir/pred --num-images 20
+
+# Model Hila is training:
+
+python train.py --model-name DiT_L4_polyps --model DiT_L4 --data-path ./data/polyps --epochs 150 --cross-model false
+python sample.py --model-name DiT_L4_polyps --model DiT_L4 --data-path ./data/polyps --cross-model false --ema true --prediction-path ./saved_models/DiT_L4_polyps/ema-pred --num-images 200
+python .\segmentation_env.py --model-name DiT_L4_polyps --pred-path ./saved_models/DiT_L4_polyps/ema-pred --data-path ./data/polyps
+
+python train.py --model-name DiT_B2_polyps --model DiT_B2 --data-path ./data/polyps --epochs 150 --cross-model false
+python sample.py --model-name DiT_B2_polyps --model DiT_B2 --data-path ./data/polyps --cross-model false --ema true --prediction-path ./saved_models/DiT_B2_polyps/ema-pred --num-images 200
+python .\segmentation_env.py --model-name DiT_B2_polyps --pred-path ./saved_models/DiT_B2_polyps/ema-pred --data-path ./data/polyps

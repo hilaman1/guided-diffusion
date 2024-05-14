@@ -11,6 +11,8 @@ import matplotlib.pyplot as plt
 from models.DiT_cross import DiT_cross_models
 import argparse
 from tqdm import tqdm
+import cv2
+from utils import delete_dir
 
 
 torch.manual_seed(42)
@@ -65,6 +67,10 @@ class Sampler:
             os.mkdir(os.path.join(os.getcwd(), "saved_models", self.model_name, f"{'ema-samples' if self.ema else 'samples'}"))
         if not os.path.exists(predictions_path):
             os.mkdir(predictions_path)
+        else:
+            delete_dir(predictions_path)
+            os.mkdir(predictions_path)
+
 
         model.eval()
         self.sampler.set_timesteps(len(range(num_training_steps - 1, 0, -int(num_training_steps / num_testing_steps))),
@@ -88,9 +94,8 @@ class Sampler:
             prediction[prediction < 0.5] = 0
             prediction[prediction >= 0.5] = 1
 
-            plt.imshow(prediction.cpu().detach().numpy() * 255)
-            plt.savefig(curr_prediction_path)
-            plt.close()
+            cv2.imwrite(curr_prediction_path, prediction.cpu().detach().numpy()*255)
+
 
             gt = gt / 0.18125
             gt = self.vae.decode(gt).sample
