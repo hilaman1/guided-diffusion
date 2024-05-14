@@ -9,6 +9,7 @@ import torchvision.transforms.functional as TF
 from tqdm import tqdm
 from utils import delete_dir
 import numpy as np
+from itertools import combinations
 
 
 random.seed(42)
@@ -138,38 +139,55 @@ def save_embedded_images(data_path, images_path, gt_path, mode, resize_height=51
         if mode == "train":
             augmentations = ['contrast', 'brightness', 'saturation', 'hue_yellow', 'hue_red', 'flipping', 'rotation']
 
-            for augmentation in augmentations:
+            augmentation_combinations = []
+            for j in range(1, 4):
+                augmentation_combinations.extend(list(combinations(augmentations, j)))
+            # choose 8 from augmentation_combinations
+            augmentation_combinations = random.sample(augmentation_combinations, 8)
+
+            for augmentation_combination in augmentation_combinations:
                 image_augmented = image.clone()
                 gt_single_channel_augmented = gt_single_channel.clone()
 
-                if augmentation == 'contrast':
-                    contrast = random.uniform(0.5, 1.5)
-                    image_augmented = TF.adjust_contrast(image_augmented, contrast)
-                elif augmentation == 'brightness':
-                    brightness = random.uniform(0.7, 1.5)
-                    image_augmented = TF.adjust_brightness(image_augmented, brightness)
-                elif augmentation == 'saturation':
-                    saturation = random.uniform(1.1, 1.5)
-                    image_augmented = TF.adjust_saturation(image_augmented, saturation)
-                elif augmentation == 'hue_yellow':
-                    hue = 0.07
-                    image_augmented = TF.adjust_hue(image_augmented, hue)
-                elif augmentation == 'hue_red':
-                    hue = -0.04
-                    image_augmented = TF.adjust_hue(image_augmented, hue)
-                elif augmentation == 'flipping':
-                    image_augmented = TF.hflip(image_augmented)
-                    gt_single_channel_augmented = TF.hflip(gt_single_channel_augmented)
-                elif augmentation == 'rotation':
-                    angle = random.randint(0, 360)
-                    image_augmented = TF.rotate(image_augmented, angle)
-                    gt_single_channel_augmented = TF.rotate(gt_single_channel_augmented, angle)
-
+                for augmentation in augmentation_combination:
+                    if augmentation == 'contrast':
+                        contrast_lst = [0.5, 1.5]
+                        rand_idx = random.randint(0, len(contrast_lst) - 1)
+                        contrast = contrast_lst[rand_idx]
+                        image_augmented = TF.adjust_contrast(image_augmented, contrast)
+                    elif augmentation == 'brightness':
+                        brightness_lst = [0.7, 0.8, 1.2, 1.5]
+                        # choose from the brightness list
+                        rand_idx = random.randint(0, len(brightness_lst) - 1)
+                        brightness = brightness_lst[rand_idx]
+                        image_augmented = TF.adjust_brightness(image_augmented, brightness)
+                    elif augmentation == 'saturation':
+                        saturation_lst = [0.5, 0.7, 1.5, 1.6]
+                        # choose from the saturation list
+                        rand_idx = random.randint(0, len(saturation_lst) - 1)
+                        saturation = saturation_lst[rand_idx]
+                        image_augmented = TF.adjust_saturation(image_augmented, saturation)
+                    elif augmentation == 'hue_yellow':
+                        hue = 0.07
+                        image_augmented = TF.adjust_hue(image_augmented, hue)
+                    elif augmentation == 'hue_red':
+                        hue = -0.04
+                        image_augmented = TF.adjust_hue(image_augmented, hue)
+                    elif augmentation == 'flipping':
+                        image_augmented = TF.hflip(image_augmented)
+                        gt_single_channel_augmented = TF.hflip(gt_single_channel_augmented)
+                    elif augmentation == 'rotation':
+                        angle_lst = [90, 180, 270]
+                        # choose from the angle list
+                        rand_idx = random.randint(0, len(angle_lst) - 1)
+                        angle = angle_lst[rand_idx]
+                        image_augmented = TF.rotate(image_augmented, angle)
+                        gt_single_channel_augmented = TF.rotate(gt_single_channel_augmented, angle)
                 with torch.no_grad():
                     image_embeddings = vae.encode(image_augmented).latent_dist.sample()
                     gt_embeddings = vae.encode(gt_single_channel_augmented).latent_dist.sample()
 
-                augmentation_string = '_'.join(augmentation)
+                augmentation_string = '_'.join(augmentation_combination)
                 image_output_file = os.path.join(output_image_path, f"{images_list[i]}_{augmentation_string}.pt")
                 gt_output_file = os.path.join(output_gt_path, f"{gt_list[i]}_{augmentation_string}.pt")
 
@@ -179,9 +197,9 @@ def save_embedded_images(data_path, images_path, gt_path, mode, resize_height=51
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--data_path", type=str, default="./data/Kvasir-SEG")
-    parser.add_argument("--images_path", type=str, default="./data/Kvasir-SEG/images")
-    parser.add_argument("--gt_path", type=str, default="./data/Kvasir-SEG/masks")
+    parser.add_argument("--data_path", type=str, default="./data/polyps")
+    parser.add_argument("--images_path", type=str, default="./data/polyps/train/train")
+    parser.add_argument("--gt_path", type=str, default="./data/polyps/train_gt/train_gt")
     parser.add_argument("--train_fraction", type=float, default=0.8)
     parser.add_argument("--resize", type=int, default=256)
 
