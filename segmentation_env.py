@@ -120,6 +120,7 @@ def main():
     argParser.add_argument("--model-name", type=str, default="DiT_B4_CROSS_Kvasir")
     argParser.add_argument("--pred-path", type=str, default=os.path.join(os.getcwd(), "data", "Kvasir-SEG", "pred"))
     argParser.add_argument("--data-path", type=str, default=os.path.join(os.getcwd(), "data", "Kvasir-SEG"))
+    argParser.add_argument("--ema", type=str, default="false", choices=["true", "false"])
     args = argParser.parse_args()
 
     mix_res = (0, 0)
@@ -156,7 +157,7 @@ def main():
     print('iou is', iou)
     print('dice is', dice)
     #     write a txt
-    path = os.path.join(os.getcwd(), "saved_models", args.model_name, "results.txt")
+    path = os.path.join(os.getcwd(), "saved_models", args.model_name, f"{'results_ema' if args.ema else 'results'}")
     with open(path, "w") as f:
         f.write(f"iou is {iou}\n")
         f.write(f"dice is {dice}\n")
