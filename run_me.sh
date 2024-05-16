@@ -116,8 +116,17 @@ python train.py --model-name DiT_S2_CROSS_Kvasir --model DiT_S2 --data-path ./da
 #python sample.py --model-name DiT_B2_polyps --model DiT_B2 --data-path ./data/polyps --cross-model false --ema true --prediction-path ./saved_models/DiT_B2_polyps/ema-pred --num-images 200
 #python .\segmentation_env.py --model-name DiT_B2_polyps --pred-path ./saved_models/DiT_B2_polyps/ema-pred --data-path ./data/polyps
 #
-#python train.py --model-name DiT_B2_Kvasir --model DiT_B2 --data-path ./data/Kvasir-SEG --epochs 150 --cross-model false
-#python sample.py --model-name DiT_B2_Kvasir --model DiT_B2 --data-path ./data/Kvasir-SEG --cross-model false --ema true --prediction-path ./saved_models/DiT_B2_Kvasir/ema-pred --num-images 200
-#python sample.py --model-name DiT_B2_Kvasir --model DiT_B2 --data-path ./data/Kvasir-SEG --cross-model false --ema false --prediction-path ./saved_models/DiT_B2_Kvasir/pred --num-images 200
-#
+#python train.py --model-name DiT_B2_Kvasir --model DiT_B2 --data-path ./data/kvasir-SEG --epochs 150 --cross-model false
+#python sample.py --model-name DiT_B2_Kvasir --model DiT_B2 --data-path ./data/kvasir-SEG --cross-model false --ema true --prediction-path ./saved_models/DiT_B2_Kvasir/ema-pred --num-images 200
+#python sample.py --model-name DiT_B2_Kvasir --model DiT_B2 --data-path ./data/kvasir-SEG --cross-model false --ema false --prediction-path ./saved_models/DiT_B2_Kvasir/pred --num-images 200
+
 #python .\segmentation_env.py --model-name DiT_B2_Kvasir --pred-path ./saved_models/DiT_B2_Kvasir/pred --data-path ./data/Kvasir-SEG --ema false
+
+#python train.py --model-name DiT_B2_CROSS_Kvasir --model DiT_B2 --data-path ./data/kvasir-SEG --epochs 150 --cross-model true
+#python sample.py --model-name DiT_B2_CROSS_Kvasir --model DiT_B2 --data-path ./data/kvasir-SEG --cross-model true --ema true --prediction-path ./saved_models/DiT_B2_CROSS_Kvasir/ema-pred --num-images 200
+#python .\segmentation_env.py --model-name DiT_B2_CROSS_Kvasir --pred-path ./saved_models/DiT_B2_CROSS_Kvasir/ema-pred --data-path ./data/kvasir-SEG --ema true
+
+#python sample.py --model-name DiT_B2_CROSS_Kvasir --model DiT_B2 --data-path ./data/kvasir-SEG --cross-model true --ema false --prediction-path ./saved_models/DiT_B2_CROSS_Kvasir/pred --num-images 200
+#python .\segmentation_env.py --model-name DiT_B2_CROSS_Kvasir --pred-path ./saved_models/DiT_B2_CROSS_Kvasir/pred --data-path ./data/kvasir-SEG --ema false
+
+#Running now

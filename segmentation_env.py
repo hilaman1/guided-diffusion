@@ -122,7 +122,7 @@ def main():
     argParser.add_argument("--data-path", type=str, default=os.path.join(os.getcwd(), "data", "Kvasir-SEG"))
     argParser.add_argument("--ema", type=str, default="false", choices=["true", "false"])
     args = argParser.parse_args()
-
+    args.ema = True if args.ema == "true" else False
     mix_res = (0, 0)
     num = 0
     model_pred_path = os.path.join(f"{args.pred_path}")

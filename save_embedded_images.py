@@ -197,9 +197,9 @@ def save_embedded_images(data_path, images_path, gt_path, mode, resize_height=51
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--data_path", type=str, default="./data/polyps")
-    parser.add_argument("--images_path", type=str, default="./data/polyps/train/train")
-    parser.add_argument("--gt_path", type=str, default="./data/polyps/train_gt/train_gt")
+    parser.add_argument("--data_path", type=str, default="./data/kvasir-SEG")
+    parser.add_argument("--images_path", type=str, default="./data/kvasir-SEG/images")
+    parser.add_argument("--gt_path", type=str, default="./data/kvasir-SEG/masks")
     parser.add_argument("--train_fraction", type=float, default=0.8)
     parser.add_argument("--resize", type=int, default=256)
 
