@@ -157,7 +157,7 @@ def main():
     print('iou is', iou)
     print('dice is', dice)
     #     write a txt
-    path = os.path.join(os.getcwd(), "saved_models", args.model_name, f"{'results_ema' if args.ema else 'results'}")
+    path = os.path.join(os.getcwd(), "saved_models", args.model_name, f"{'results_ema.txt' if args.ema else 'results.txt'}")
     with open(path, "w") as f:
         f.write(f"iou is {iou}\n")
         f.write(f"dice is {dice}\n")
