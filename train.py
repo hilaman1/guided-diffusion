@@ -164,6 +164,7 @@ def main(args):
     model.load_state_dict(state_dict)
     for param in model.parameters():
         param.requires_grad = False
+    model.y_embedder = PatchEmbed(input_size, patch_size, condition_channels, hidden_size, bias=True)
     model.y_embedder = nn.Sequential(
         nn.Linear(4096, 1152),
         nn.SiLU(),
@@ -184,12 +185,6 @@ def main(args):
     opt = torch.optim.AdamW(model.parameters(), lr=1e-4, weight_decay=0)
 
     # Setup data:
-    transform = transforms.Compose([
-        transforms.Lambda(lambda pil_image: center_crop_arr(pil_image, args.image_size)),
-        transforms.RandomHorizontalFlip(),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5], inplace=True)
-    ])
 
     data_path = os.path.join(os.getcwd(), "datasets", "polyps")
     dataset = polyp_dataset(
