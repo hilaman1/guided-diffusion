@@ -35,6 +35,7 @@ from polyp_dataset import polyp_dataset
 import torch.nn as nn
 from models import full_model, FinalLayer
 from tqdm import tqdm
+from timm.models.vision_transformer import PatchEmbed
 
 
 #################################################################################
@@ -164,7 +165,7 @@ def main(args):
     model.load_state_dict(state_dict)
     for param in model.parameters():
         param.requires_grad = False
-    model.y_embedder = PatchEmbed(input_size, patch_size, condition_channels, hidden_size, bias=True)
+    model.y_embedder = PatchEmbed(32, 2, 4, 1152, bias=True)
     model.y_embedder = nn.Sequential(
         nn.Linear(4096, 1152),
         nn.SiLU(),
