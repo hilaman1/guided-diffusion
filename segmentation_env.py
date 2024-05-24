@@ -116,16 +116,34 @@ def eval_seg(pred, true_mask_p, threshold=(0.1, 0.3, 0.5, 0.7, 0.9)):
 
 
 def main():
-    argParser = argparse.ArgumentParser()
-    argParser.add_argument("--model-name", type=str, default="DiT_B4_CROSS_Kvasir")
-    argParser.add_argument("--pred-path", type=str, default=os.path.join(os.getcwd(), "data", "Kvasir-SEG", "pred"))
-    argParser.add_argument("--data-path", type=str, default=os.path.join(os.getcwd(), "data", "Kvasir-SEG"))
-    argParser.add_argument("--ema", type=str, default="false", choices=["true", "false"])
-    args = argParser.parse_args()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--model", type=str, default="DiT_S8", choices=["DiT_XL2", "DiT_XL4", "DiT_XL8",
+                                                                        "DiT_L2", "DiT_L4", "DiT_L8",
+                                                                        "DiT_B2", "DiT_B4", "DiT_B8",
+                                                                        "DiT_S2", "DiT_S4", "DiT_S8"])
+    parser.add_argument("--data-path", type=str, default="./data/Kvasir-SEG")
+    parser.add_argument("--epochs", type=int, default=150)
+    parser.add_argument("--batch-size", type=int, default=16)
+    parser.add_argument("--load-pretrained", type=bool, default=False)
+    parser.add_argument("--cross-model", type=str, default="true", choices=["true", "false"])
+    parser.add_argument("--num-augmentations", type=int, default=8)
+    parser.add_argument("--ema", type=str, default="false", choices=["true", "false"])
+    parser.add_argument("--num-testing-steps", type=int, default=100)
+
+
+    args = parser.parse_args()
+    args.cross_model = True if args.cross_model == "true" else False
     args.ema = True if args.ema == "true" else False
+    model_name = f"{args.model}_{'CROSS' if args.cross_model else ''}_{args.data_path.split('/')[-1]}_{args.epochs}_epochs_{args.batch_size}_batch_{args.num_augmentations}_augmentations"
+    predictions_path = os.path.join(os.getcwd(), "saved_models", model_name, "pred")
+
+    if args.ema:
+        predictions_path = predictions_path + f"-ema-{args.num_testing_steps}_testing_steps"
+    else:
+        predictions_path = predictions_path + f"-{args.num_testing_steps}_testing_steps"
+    args.cross_model = True if args.cross_model == "true" else False
     mix_res = (0, 0)
     num = 0
-    model_pred_path = os.path.join(f"{args.pred_path}")
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
     test_dataset = polyp_dataset(
@@ -139,7 +157,7 @@ def main():
     for i in tqdm(range(len(test_dataloader))):
         gt, image = next(data_iter)
         num += 1
-        curr_prediction_path = os.path.join(model_pred_path, f"pred_{i + 1}.png")
+        curr_prediction_path = os.path.join(predictions_path, f"pred_{i + 1}.png")
         pred = plt.imread(curr_prediction_path)
         vae = AutoencoderKL.from_pretrained(f"stabilityai/sd-vae-ft-ema").to(device)
         gt = gt / 0.18125
@@ -157,7 +175,10 @@ def main():
     print('iou is', iou)
     print('dice is', dice)
     #     write a txt
-    path = os.path.join(os.getcwd(), "saved_models", args.model_name, f"{'results_ema.txt' if args.ema else 'results.txt'}")
+    if args.ema:
+        path = os.path.join(os.getcwd(), "saved_models", model_name, f"ema_results_{args.num_testing_steps}_testing_steps.txt")
+    else:
+        path = os.path.join(os.getcwd(), "saved_models", model_name, f"results_{args.num_testing_steps}_testing_steps.txt")
     with open(path, "w") as f:
         f.write(f"iou is {iou}\n")
         f.write(f"dice is {dice}\n")

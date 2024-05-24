@@ -62,7 +62,7 @@ def split_images(data_path, images_path, gt_path, train_fraction=0.8):
     print("Saved Images Successfully")
 
 
-def save_embedded_images(data_path, images_path, gt_path, mode, resize_height=512, resize_width=512):
+def save_embedded_images(data_path, images_path, gt_path, mode, resize_height=512, resize_width=512, num_augmentations=8):
     assert mode in ["train", "test"], "mode must be train/test."
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
@@ -143,7 +143,7 @@ def save_embedded_images(data_path, images_path, gt_path, mode, resize_height=51
             for j in range(1, 4):
                 augmentation_combinations.extend(list(combinations(augmentations, j)))
             # choose 8 from augmentation_combinations
-            augmentation_combinations = random.sample(augmentation_combinations, 8)
+            augmentation_combinations = random.sample(augmentation_combinations, num_augmentations)
 
             for augmentation_combination in augmentation_combinations:
                 image_augmented = image.clone()
@@ -202,6 +202,8 @@ if __name__ == "__main__":
     parser.add_argument("--gt_path", type=str, default="./data/kvasir-SEG/masks")
     parser.add_argument("--train_fraction", type=float, default=0.8)
     parser.add_argument("--resize", type=int, default=256)
+    parser.add_argument("--num-augmentations", type=int, default=8)
+
 
     args = parser.parse_args()
     data_path = args.data_path
@@ -210,13 +212,15 @@ if __name__ == "__main__":
     train_fraction = args.train_fraction
     resize_height = args.resize
     resize_width = args.resize
+    num_augmentations = args.num_augmentations
+
 
     split_images(data_path, images_path, gt_path, train_fraction)
 
     train_images_path = os.path.join(data_path, "train_images")
     train_gt_path = os.path.join(data_path, "train_gt_images")
-    save_embedded_images(data_path, train_images_path, train_gt_path, "train", resize_height, resize_width)
+    save_embedded_images(data_path, train_images_path, train_gt_path, "train", resize_height, resize_width, num_augmentations)
 
     test_images_path = os.path.join(data_path, "test_images")
     test_gt_path = os.path.join(data_path, "test_gt_images")
-    save_embedded_images(data_path, test_images_path, test_gt_path, "test", resize_height, resize_width)
+    save_embedded_images(data_path, test_images_path, test_gt_path, "test", resize_height, resize_width, num_augmentations)

@@ -168,12 +168,12 @@ class Trainer:
         print("Loaded Model Successfully.")
 
 
-def main(rank: int, world_size: int, args):
+def main(rank: int, world_size: int, args, model_name: str):
     print(f"Detected {world_size} {'GPU' if world_size == 1 else 'GPUs'}")
     setup(rank, world_size)
 
     data_path = args.data_path
-    model_name = args.model_name
+    model_name = model_name
     batch_size = args.batch_size
     lr = 1e-4
     beta_start = 10 ** -4
@@ -230,7 +230,6 @@ if __name__ == "__main__":
     assert torch.cuda.is_available(), "Did not find a GPU"
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model-name", type=str, default="DiT_S8_CROSS_Kvasir")
     parser.add_argument("--model", type=str, default="DiT_S8", choices=["DiT_XL2", "DiT_XL4", "DiT_XL8",
                                                                         "DiT_L2", "DiT_L4", "DiT_L8",
                                                                         "DiT_B2", "DiT_B4", "DiT_B8",
@@ -240,11 +239,14 @@ if __name__ == "__main__":
     parser.add_argument("--batch-size", type=int, default=16)
     parser.add_argument("--load-pretrained", type=bool, default=False)
     parser.add_argument("--cross-model", type=str, default="true", choices=["true", "false"])
+    parser.add_argument("--num-augmentations", type=int, default=8)
+
 
     args = parser.parse_args()
     args.cross_model = True if args.cross_model == "true" else False
+    model_name = f"{args.model}_{'CROSS' if args.cross_model else ''}_{args.data_path.split('/')[-1]}_{args.epochs}_epochs_{args.batch_size}_batch_{args.num_augmentations}_augmentations"
 
     world_size = torch.cuda.device_count()
-    mp.spawn(main, args=(world_size, args,), nprocs=world_size)
+    mp.spawn(main, args=(world_size, args, model_name,), nprocs=world_size)
 
 

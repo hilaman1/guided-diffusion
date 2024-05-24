@@ -63,15 +63,22 @@ class Sampler:
             self.model.load_state_dict(checkpoint["model"])
 
     def sample(self, predictions_path):
-        if not os.path.exists(os.path.join(os.getcwd(), "saved_models", self.model_name, f"{'ema-samples' if self.ema else 'samples'}")):
-            os.mkdir(os.path.join(os.getcwd(), "saved_models", self.model_name, f"{'ema-samples' if self.ema else 'samples'}"))
+        if self.ema:
+            predictions_path = predictions_path + f"-ema-{self.num_testing_steps}_testing_steps"
+            sample_path = os.path.join(os.getcwd(), "saved_models", self.model_name, f"samples-ema-{self.num_testing_steps}_testing_steps")
+        else:
+            predictions_path = predictions_path + f"-{self.num_testing_steps}_testing_steps"
+            sample_path = os.path.join(os.getcwd(), "saved_models", self.model_name, f"samples-{self.num_testing_steps}_testing_steps")
+        if not os.path.exists(sample_path):
+            os.mkdir(sample_path)
+        else:
+            delete_dir(sample_path)
+            os.mkdir(sample_path)
         if not os.path.exists(predictions_path):
             os.mkdir(predictions_path)
         else:
             delete_dir(predictions_path)
             os.mkdir(predictions_path)
-
-
         model.eval()
         self.sampler.set_timesteps(len(range(num_training_steps - 1, 0, -int(num_training_steps / num_testing_steps))),
                                    self.device)
@@ -83,10 +90,7 @@ class Sampler:
             prediction, noise_images = sample(model, self.vae, self.sampler, image, self.num_training_steps,
                                               self.num_testing_steps, self.device, self.cfg_scale, self.guided)
             # model_pred_path = os.path.join(predictions_path, self.model_name)
-            model_pred_path = predictions_path
-            if not os.path.exists(model_pred_path):
-                os.mkdir(model_pred_path)
-            curr_prediction_path = os.path.join(model_pred_path, f"pred_{i + 1}.png")
+            curr_prediction_path = os.path.join(predictions_path, f"pred_{i + 1}.png")
 
             prediction = torch.squeeze(prediction, dim=0)
             # create a binary image
@@ -117,26 +121,33 @@ class Sampler:
             axis[1].set_title("GT")
             axis[0].imshow(image)
             axis[0].set_title("Image")
-            plt.savefig(os.path.join(os.getcwd(), "saved_models", self.model_name, f"{'ema-samples' if self.ema else 'samples'}", f"{i+1}.png"))
+            plt.savefig(os.path.join(sample_path, f"sample_{i + 1}.png"))
             plt.close()
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model-name", type=str, default="DiT_B2_Kvasir")
-    parser.add_argument("--model", type=str, default="DiT_B2", choices=["DiT_XL2", "DiT_XL4", "DiT_XL8",
+    parser.add_argument("--model", type=str, default="DiT_S8", choices=["DiT_XL2", "DiT_XL4", "DiT_XL8",
                                                                         "DiT_L2", "DiT_L4", "DiT_L8",
                                                                         "DiT_B2", "DiT_B4", "DiT_B8",
                                                                         "DiT_S2", "DiT_S4", "DiT_S8"])
     parser.add_argument("--data-path", type=str, default="./data/Kvasir-SEG")
+    parser.add_argument("--epochs", type=int, default=150)
+    parser.add_argument("--batch-size", type=int, default=16)
+    parser.add_argument("--load-pretrained", type=bool, default=False)
     parser.add_argument("--cross-model", type=str, default="true", choices=["true", "false"])
-    parser.add_argument("--ema", type=str, default="false", choices=["true", "false"])
-    parser.add_argument("--prediction-path", type=str, default=os.path.join(os.getcwd(), "data", "Kvasir-SEG", "pred"))
+    parser.add_argument("--num-augmentations", type=int, default=8)
+    parser.add_argument("--ema", type=str, default="true", choices=["true", "false"])
     parser.add_argument("--num-images", type=int, default=20)
     parser.add_argument("--num-testing-steps", type=int, default=100)
 
 
     args = parser.parse_args()
+    args.cross_model = True if args.cross_model == "true" else False
+    args.ema = True if args.ema == 'true' else False
+    model_name = f"{args.model}_{'CROSS' if args.cross_model else ''}_{args.data_path.split('/')[-1]}_{args.epochs}_epochs_{args.batch_size}_batch_{args.num_augmentations}_augmentations"
+    predictions_path = os.path.join(os.getcwd(), "saved_models", model_name, "pred")
+
     model_type = args.model
     model_names = {
         "DiT_XL2": "DiT-XL/2", "DiT_XL4": "DiT-XL/4", "DiT_XL8": "DiT-XL/8",
@@ -144,14 +155,12 @@ if __name__ == "__main__":
         "DiT_B2": "DiT-B/2", "DiT_B4": "DiT-B/4", "DiT_B8": "DiT-B/8",
         "DiT_S2": "DiT-S/2", "DiT_S4": "DiT-S/4", "DiT_S8": "DiT-S/8",
     }
-    args.ema = True if args.ema == "true" else False
-    args.cross_model = True if args.cross_model == "true" else False
+
     if args.cross_model:
         model = DiT_cross_models[model_names[model_type]](in_channels=4, condition_channels=4, learn_sigma=False)
     else:
         model = DiT_models[model_names[model_type]](in_channels=4, condition_channels=4, learn_sigma=False)
 
-    predictions_path = args.prediction_path
     beta_start = 10 ** -4
     beta_end = 2 * 10 ** -2
     num_training_steps = 1000
@@ -161,7 +170,7 @@ if __name__ == "__main__":
 
     sampler = Sampler(
         model=model,
-        model_name=args.model_name,
+        model_name=model_name,
         data_path=args.data_path,
         beta_start=beta_start,
         beta_end=beta_end,
@@ -173,6 +182,6 @@ if __name__ == "__main__":
         num_images=args.num_images
     )
 
-    print(f"Model Name: {args.model_name}\nModel: {args.model}\nData Path: {args.data_path}\n"
+    print(f"Model Name: {model_name}\nModel: {args.model}\nData Path: {args.data_path}\n"
           f"Cross Model: {args.cross_model}\nEMA: {args.ema}")
     sampler.sample(predictions_path)
