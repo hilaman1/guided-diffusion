@@ -133,6 +133,8 @@ if __name__ == "__main__":
     parser.add_argument("--ema", type=str, default="false", choices=["true", "false"])
     parser.add_argument("--prediction-path", type=str, default=os.path.join(os.getcwd(), "data", "Kvasir-SEG", "pred"))
     parser.add_argument("--num-images", type=int, default=20)
+    parser.add_argument("--num-testing-steps", type=int, default=100)
+
 
     args = parser.parse_args()
     model_type = args.model
@@ -153,7 +155,7 @@ if __name__ == "__main__":
     beta_start = 10 ** -4
     beta_end = 2 * 10 ** -2
     num_training_steps = 1000
-    num_testing_steps = 100
+    num_testing_steps = args.num_testing_steps
     cfg_scale = 3.0
     guided = True
 
