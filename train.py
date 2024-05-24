@@ -166,11 +166,6 @@ def main(args):
     for param in model.parameters():
         param.requires_grad = False
     model.y_embedder = PatchEmbed(32, 2, 4, 1152, bias=True)
-    model.y_embedder = nn.Sequential(
-        nn.Linear(4096, 1152),
-        nn.SiLU(),
-        nn.Linear(1152, 1152)
-    )
     model.final_layer = FinalLayer(1152, 2, 8)
     model.to(device)
 
