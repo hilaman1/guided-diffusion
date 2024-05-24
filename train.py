@@ -140,6 +140,8 @@ def main(args):
     torch.cuda.set_device(device)
     print(f"Starting rank={rank}, seed={seed}, world_size={dist.get_world_size()}.")
     rank = 0
+    model_name = f"{args.model}_{args.data_path.split('/')[-1]}_{args.epochs}_epochs_{args.global_batch_size}_batch_{args.num_augmentations}_augmentations"
+
     # Setup an experiment folder:
     if rank == 0:
         os.makedirs(args.results_dir, exist_ok=True)  # Make results folder (holds all experiment subfolders)
@@ -182,10 +184,11 @@ def main(args):
 
     # Setup data:
 
-    data_path = os.path.join(os.getcwd(), "datasets", "polyps")
+    data_path = args.data_path
     dataset = polyp_dataset(
         data_path=data_path,
-        mode="train"
+        mode="train",
+        device=device
     )
 
     sampler = DistributedSampler(
@@ -258,14 +261,13 @@ def main(args):
             # Save DiT checkpoint:
             if train_steps % args.ckpt_every == 0 and train_steps > 0:
                 if rank == 0:
-                    checkpoint = {
-                        "model": model.state_dict(),
+                    checkpoint_path = os.path.join(os.getcwd(), "saved_models", model_name,
+                                                   f"{model_name}.pt")
+                    state = {
+                        "model": model.module.state_dict(),
                         "ema": ema.state_dict(),
-                        "opt": opt.state_dict(),
-                        "args": args
                     }
-                    checkpoint_path = f"{checkpoint_dir}/{train_steps:07d}.pt"
-                    torch.save(checkpoint, checkpoint_path)
+                    torch.save(state, checkpoint_path)
                     logger.info(f"Saved checkpoint to {checkpoint_path}")
                 dist.barrier()
 
@@ -279,17 +281,18 @@ def main(args):
 if __name__ == "__main__":
     # Default args here will train DiT-XL/2 with the hyperparameters we used in our paper (except training iters).
     parser = argparse.ArgumentParser()
-    parser.add_argument("--data-path", type=str, default="./")
+    parser.add_argument("--data-path", type=str, default="./data/Kvasir-SEG")
     parser.add_argument("--results-dir", type=str, default="results")
     parser.add_argument("--model", type=str, choices=list(DiT_models.keys()), default="DiT-XL/2")
     parser.add_argument("--image-size", type=int, choices=[256, 512], default=256)
     parser.add_argument("--num-classes", type=int, default=1000)
-    parser.add_argument("--epochs", type=int, default=1400)
+    parser.add_argument("--epochs", type=int, default=150)
     parser.add_argument("--global-batch-size", type=int, default=16)
     parser.add_argument("--global-seed", type=int, default=0)
     parser.add_argument("--vae", type=str, choices=["ema", "mse"], default="ema")  # Choice doesn't affect training
     parser.add_argument("--num-workers", type=int, default=4)
     parser.add_argument("--log-every", type=int, default=100)
     parser.add_argument("--ckpt-every", type=int, default=1000)
+    parser.add_argument("--num-augmentations", type=int, default=1)
     args = parser.parse_args()
     main(args)
