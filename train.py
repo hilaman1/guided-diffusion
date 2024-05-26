@@ -140,7 +140,6 @@ def main(args):
     torch.cuda.set_device(device)
     print(f"Starting rank={rank}, seed={seed}, world_size={dist.get_world_size()}.")
     rank = 0
-    model_name = f"{args.model}_{args.data_path.split('/')[-1]}_{args.epochs}_epochs_{args.global_batch_size}_batch_{args.num_augmentations}_augmentations"
 
     # Setup an experiment folder:
     if rank == 0:
@@ -154,7 +153,7 @@ def main(args):
         logger.info(f"Experiment directory created at {experiment_dir}")
     else:
         logger = create_logger(None)
-
+    model_name = f"{model_string_name}_{args.data_path.split('/')[-1]}_{args.epochs}_epochs_{args.global_batch_size}_batch_{args.num_augmentations}_augmentations"
     # Create model:
     assert args.image_size % 8 == 0, "Image size must be divisible by 8 (for the VAE encoder)."
     latent_size = args.image_size // 8
@@ -257,7 +256,9 @@ def main(args):
                 running_loss = 0
                 log_steps = 0
                 start_time = time()
-
+            # check if the directory to save the model exists
+            if not os.path.exists(os.path.join(os.getcwd(), "saved_models", model_name)):
+                os.makedirs(os.path.join(os.getcwd(), "saved_models", model_name))
             # Save DiT checkpoint:
             if train_steps % args.ckpt_every == 0 and train_steps > 0:
                 if rank == 0:
@@ -287,12 +288,12 @@ if __name__ == "__main__":
     parser.add_argument("--image-size", type=int, choices=[256, 512], default=256)
     parser.add_argument("--num-classes", type=int, default=1000)
     parser.add_argument("--epochs", type=int, default=150)
-    parser.add_argument("--global-batch-size", type=int, default=16)
+    parser.add_argument("--global-batch-size", type=int, default=8)
     parser.add_argument("--global-seed", type=int, default=0)
     parser.add_argument("--vae", type=str, choices=["ema", "mse"], default="ema")  # Choice doesn't affect training
     parser.add_argument("--num-workers", type=int, default=4)
     parser.add_argument("--log-every", type=int, default=100)
     parser.add_argument("--ckpt-every", type=int, default=1000)
-    parser.add_argument("--num-augmentations", type=int, default=1)
+    parser.add_argument("--num-augmentations", type=int, default=8)
     args = parser.parse_args()
     main(args)
